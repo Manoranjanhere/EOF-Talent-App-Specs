@@ -1,0 +1,605 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MediaAssetType {
+  IMAGE
+  VIDEO
+}
+
+enum AlbumVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum TagLinkType {
+  PRIMARY
+  SECONDARY
+}
+
+enum PurchaseType {
+  PAID
+  FREE
+  COMPENSATORY
+}
+
+enum FlagReason {
+  FINANCIAL_SCAM
+  OBSCENE
+  CHILD_ABUSE
+  PORNOGRAPHY
+}
+
+enum FlagStatus {
+  OPEN
+  REVIEWING
+  ACTIONED
+  REJECTED
+}
+
+enum ActionType {
+  WARN
+  SUSPEND
+  DEACTIVATE
+  BAN
+  NOTE
+}
+
+model GroupMaster {
+  id             Int            @id
+  code           String         @unique
+  title          String
+  isSystem       Boolean        @default(true) @map("is_system")
+  isActive       Boolean        @default(true) @map("is_active")
+  userRoles      UserRoleLink[]
+  lastUpdateAt   DateTime       @updatedAt @map("last_update_at")
+  lastUpdateIp   String         @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String         @default("system") @map("last_update_by")
+
+  @@map("group_master")
+}
+
+model UserAccount {
+  id                     String                    @id @default(uuid())
+  email                  String?                   @unique
+  mobileNumber           String?                   @unique @map("mobile_number")
+  passwordHash           String?                   @map("password_hash")
+  fullName               String                    @map("full_name")
+  age                    Int?
+  gender                 String?
+  heightCm               Decimal?                  @db.Decimal(5, 2) @map("height_cm")
+  weightKg               Decimal?                  @db.Decimal(5, 2) @map("weight_kg")
+  city                   String?
+  country                String?
+  instagramUrl           String?                   @map("instagram_url")
+  snapchatUrl            String?                   @map("snapchat_url")
+  youtubeUrl             String?                   @map("youtube_url")
+  tiktokUrl              String?                   @map("tiktok_url")
+  websiteUrl             String?                   @map("website_url")
+  facebookUrl            String?                   @map("facebook_url")
+  miniBio                String?                   @db.VarChar(600) @map("mini_bio")
+  lookingForWork         Boolean                   @default(true) @map("looking_for_work")
+  ratingAverage          Decimal                   @default(0) @db.Decimal(3, 2) @map("rating_average")
+  ratingCount            Int                       @default(0) @map("rating_count")
+  loginEnabled           Boolean                   @default(true) @map("login_enabled")
+  loginResetDate         DateTime?                 @map("login_reset_date")
+  loginAttempts          Int                       @default(0) @map("login_attempts")
+  lastFailedLogin        DateTime?                 @map("last_failed_login")
+  splUser                Boolean                   @default(false) @map("spl_user")
+  smmUser                Boolean                   @default(false) @map("smm_user")
+  defaultOrgTypeId       Int?                      @map("default_org_type_id")
+  profilePhotoAssetId    String?                   @map("profile_photo_asset_id")
+  isActive               Boolean                   @default(true) @map("is_active")
+  createdAt              DateTime                  @default(now()) @map("created_at")
+  lastUpdateAt           DateTime                  @updatedAt @map("last_update_at")
+  lastUpdateIp           String                    @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy           String                    @default("system") @map("last_update_by")
+  defaultOrgType         OrgTypeMaster?            @relation(fields: [defaultOrgTypeId], references: [id])
+  roles                  UserRoleLink[]
+  statusHistory          UserStatusHistory[]
+  profileTalent          ProfileTalent?
+  profileOrg             ProfileOrg?
+  profileTags            ProfileTagLink[]
+  albums                 MediaAlbum[]
+  mediaAssets            MediaAsset[]
+  albumAccessGrantsGiven AlbumAccessGrant[]        @relation("album_access_granted_by")
+  albumAccessGrants      AlbumAccessGrant[]        @relation("album_access_for_user")
+  subscriptions          UserSubscription[]
+  jobsPosted             JobPosting[]              @relation("job_posted_by")
+  applications           JobApplication[]
+  chatThreadLinks        ChatThreadParticipant[]
+  chatMessages           ChatMessage[]
+  readStates             ChatReadState[]
+  blocksGiven            ChatBlockList[]           @relation("chat_block_by")
+  blocksReceived         ChatBlockList[]           @relation("chat_blocked_user")
+  reportsRaised          ProfileFlagReport[]       @relation("report_raised_by")
+  reportsAgainst         ProfileFlagReport[]       @relation("report_against_user")
+  adminActionsTaken      AdminActionLog[]          @relation("admin_action_taken_by")
+  adminActionsReceived   AdminActionLog[]          @relation("admin_action_on_user")
+  feedbackItems          HelpFeedback[]
+  jobRatingsGiven        TalentRating[]            @relation("rating_by_user")
+  jobRatingsReceived     TalentRating[]            @relation("rating_for_user")
+
+  @@index([isActive])
+  @@map("user_account")
+}
+
+model UserRoleLink {
+  id           String      @id @default(uuid())
+  userId       String      @map("user_id")
+  groupId      Int         @map("group_id")
+  isPrimary    Boolean     @default(false) @map("is_primary")
+  isActive     Boolean     @default(true) @map("is_active")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  lastUpdateAt DateTime    @updatedAt @map("last_update_at")
+  lastUpdateIp String      @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy String      @default("system") @map("last_update_by")
+  user         UserAccount @relation(fields: [userId], references: [id])
+  group        GroupMaster @relation(fields: [groupId], references: [id])
+
+  @@unique([userId, groupId])
+  @@index([groupId, isActive])
+  @@map("user_role_link")
+}
+
+model UserStatusHistory {
+  id             String      @id @default(uuid())
+  userId         String      @map("user_id")
+  oldIsActive    Boolean     @map("old_is_active")
+  newIsActive    Boolean     @map("new_is_active")
+  reason         String?
+  changedAt      DateTime    @default(now()) @map("changed_at")
+  lastUpdateAt   DateTime    @updatedAt @map("last_update_at")
+  lastUpdateIp   String      @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String      @default("system") @map("last_update_by")
+  user           UserAccount @relation(fields: [userId], references: [id])
+
+  @@index([userId, changedAt])
+  @@map("user_status_history")
+}
+
+model OrgTypeMaster {
+  id           Int           @id @default(autoincrement())
+  name         String        @unique
+  published    Boolean       @default(true)
+  isActive     Boolean       @default(true) @map("is_active")
+  profiles     ProfileOrg[]
+  users        UserAccount[]
+  lastUpdateAt DateTime      @updatedAt @map("last_update_at")
+  lastUpdateIp String        @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy String        @default("system") @map("last_update_by")
+
+  @@map("org_type_master")
+}
+
+model ProfileTalent {
+  id             String      @id @default(uuid())
+  userId         String      @unique @map("user_id")
+  introHeadline  String?     @map("intro_headline")
+  showInSearch   Boolean     @default(true) @map("show_in_search")
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  lastUpdateAt   DateTime    @updatedAt @map("last_update_at")
+  lastUpdateIp   String      @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String      @default("system") @map("last_update_by")
+  user           UserAccount @relation(fields: [userId], references: [id])
+
+  @@map("profile_talent")
+}
+
+model ProfileOrg {
+  id               String        @id @default(uuid())
+  userId           String        @unique @map("user_id")
+  orgTypeId        Int           @map("org_type_id")
+  legalName        String        @map("legal_name")
+  addressLine      String?       @map("address_line")
+  taxId            String?       @map("tax_id")
+  contactName      String?       @map("contact_name")
+  contactPosition  String?       @map("contact_position")
+  contactNumber    String?       @map("contact_number")
+  contactEmail     String?       @map("contact_email")
+  isActive         Boolean       @default(true) @map("is_active")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  lastUpdateAt     DateTime      @updatedAt @map("last_update_at")
+  lastUpdateIp     String        @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy     String        @default("system") @map("last_update_by")
+  user             UserAccount   @relation(fields: [userId], references: [id])
+  orgType          OrgTypeMaster @relation(fields: [orgTypeId], references: [id])
+
+  @@map("profile_org")
+}
+
+model TagMaster {
+  id             String         @id @default(uuid())
+  slug           String         @unique
+  title          String         @unique
+  published      Boolean        @default(true)
+  isActive       Boolean        @default(true) @map("is_active")
+  profileLinks   ProfileTagLink[]
+  jobLinks       JobTagLink[]
+  createdAt      DateTime       @default(now()) @map("created_at")
+  lastUpdateAt   DateTime       @updatedAt @map("last_update_at")
+  lastUpdateIp   String         @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String         @default("system") @map("last_update_by")
+
+  @@map("tag_master")
+}
+
+model ProfileTagLink {
+  id             String       @id @default(uuid())
+  userId         String       @map("user_id")
+  tagId          String       @map("tag_id")
+  linkType       TagLinkType  @map("link_type")
+  isActive       Boolean      @default(true) @map("is_active")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  lastUpdateAt   DateTime     @updatedAt @map("last_update_at")
+  lastUpdateIp   String       @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String       @default("system") @map("last_update_by")
+  user           UserAccount  @relation(fields: [userId], references: [id])
+  tag            TagMaster    @relation(fields: [tagId], references: [id])
+
+  @@unique([userId, tagId, linkType])
+  @@index([userId, linkType, isActive])
+  @@map("profile_tag_link")
+}
+
+model MediaAlbum {
+  id             String             @id @default(uuid())
+  ownerUserId    String             @map("owner_user_id")
+  title          String
+  visibility     AlbumVisibility
+  sortOrder      Int                @default(1) @map("sort_order")
+  isActive       Boolean            @default(true) @map("is_active")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  lastUpdateAt   DateTime           @updatedAt @map("last_update_at")
+  lastUpdateIp   String             @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String             @default("system") @map("last_update_by")
+  owner          UserAccount        @relation(fields: [ownerUserId], references: [id])
+  assets         MediaAsset[]
+  accessGrants   AlbumAccessGrant[]
+
+  @@index([ownerUserId, visibility])
+  @@map("media_album")
+}
+
+model MediaAsset {
+  id               String         @id @default(uuid())
+  ownerUserId      String         @map("owner_user_id")
+  albumId          String?        @map("album_id")
+  assetType        MediaAssetType @map("asset_type")
+  objectKey        String         @map("object_key")
+  mimeType         String?        @map("mime_type")
+  sizeBytes        Int?           @map("size_bytes")
+  durationSeconds  Int?           @map("duration_seconds")
+  isProfilePhoto   Boolean        @default(false) @map("is_profile_photo")
+  isActive         Boolean        @default(true) @map("is_active")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  lastUpdateAt     DateTime       @updatedAt @map("last_update_at")
+  lastUpdateIp     String         @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy     String         @default("system") @map("last_update_by")
+  owner            UserAccount    @relation(fields: [ownerUserId], references: [id])
+  album            MediaAlbum?    @relation(fields: [albumId], references: [id])
+
+  @@index([ownerUserId, assetType, isActive])
+  @@map("media_asset")
+}
+
+model AlbumAccessGrant {
+  id             String      @id @default(uuid())
+  albumId        String      @map("album_id")
+  grantedToUserId String     @map("granted_to_user_id")
+  grantedByUserId String     @map("granted_by_user_id")
+  grantedDays    Int         @default(30) @map("granted_days")
+  startsAt       DateTime    @default(now()) @map("starts_at")
+  expiresAt      DateTime    @map("expires_at")
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  lastUpdateAt   DateTime    @updatedAt @map("last_update_at")
+  lastUpdateIp   String      @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String      @default("system") @map("last_update_by")
+  album          MediaAlbum  @relation(fields: [albumId], references: [id])
+  grantedToUser  UserAccount @relation("album_access_for_user", fields: [grantedToUserId], references: [id])
+  grantedByUser  UserAccount @relation("album_access_granted_by", fields: [grantedByUserId], references: [id])
+
+  @@unique([albumId, grantedToUserId])
+  @@index([albumId, grantedToUserId, isActive])
+  @@map("album_access_grant")
+}
+
+model SubscriptionPlanMaster {
+  id                String             @id @default(uuid())
+  code              String             @unique
+  title             String
+  description       String?
+  targetGroupId     Int?               @map("target_group_id")
+  monthlyPriceInr   Int                @map("monthly_price_inr")
+  validityDays      Int                @default(30) @map("validity_days")
+  published         Boolean            @default(true)
+  isJobPostingPlan  Boolean            @default(false) @map("is_job_posting_plan")
+  isActive          Boolean            @default(true) @map("is_active")
+  subscriptions     UserSubscription[]
+  lastUpdateAt      DateTime           @updatedAt @map("last_update_at")
+  lastUpdateIp      String             @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy      String             @default("system") @map("last_update_by")
+
+  @@map("subscription_plan_master")
+}
+
+model UserSubscription {
+  id             String                 @id @default(uuid())
+  userId         String                 @map("user_id")
+  planId         String                 @map("plan_id")
+  purchaseType   PurchaseType           @map("purchase_type")
+  purchaseDate   DateTime               @default(now()) @map("purchase_date")
+  originalExpiry DateTime               @map("original_expiry")
+  lastExpiry     DateTime               @map("last_expiry")
+  isActive       Boolean                @default(true) @map("is_active")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  lastUpdateAt   DateTime               @updatedAt @map("last_update_at")
+  lastUpdateIp   String                 @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String                 @default("system") @map("last_update_by")
+  user           UserAccount            @relation(fields: [userId], references: [id])
+  plan           SubscriptionPlanMaster @relation(fields: [planId], references: [id])
+
+  @@index([userId, isActive, lastExpiry])
+  @@map("user_subscription")
+}
+
+model JobPosting {
+  id                 String           @id @default(uuid())
+  postedByUserId     String           @map("posted_by_user_id")
+  title              String
+  miniDescription    String           @map("mini_description")
+  gender             String?
+  ageRangeMin        Int?             @map("age_range_min")
+  ageRangeMax        Int?             @map("age_range_max")
+  city               String?
+  country            String?
+  payRangeMin        Int?             @map("pay_range_min")
+  payRangeMax        Int?             @map("pay_range_max")
+  validTill          DateTime         @map("valid_till")
+  isActive           Boolean          @default(true) @map("is_active")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  lastUpdateAt       DateTime         @updatedAt @map("last_update_at")
+  lastUpdateIp       String           @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy       String           @default("system") @map("last_update_by")
+  postedBy           UserAccount      @relation("job_posted_by", fields: [postedByUserId], references: [id])
+  tags               JobTagLink[]
+  applications       JobApplication[]
+
+  @@index([city, country, isActive])
+  @@map("job_posting")
+}
+
+model JobTagLink {
+  id             String      @id @default(uuid())
+  jobId          String      @map("job_id")
+  tagId          String      @map("tag_id")
+  linkType       TagLinkType @map("link_type")
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  lastUpdateAt   DateTime    @updatedAt @map("last_update_at")
+  lastUpdateIp   String      @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String      @default("system") @map("last_update_by")
+  job            JobPosting  @relation(fields: [jobId], references: [id])
+  tag            TagMaster   @relation(fields: [tagId], references: [id])
+
+  @@unique([jobId, tagId, linkType])
+  @@index([jobId, linkType])
+  @@map("job_tag_link")
+}
+
+model JobApplication {
+  id             String      @id @default(uuid())
+  jobId          String      @map("job_id")
+  applicantUserId String     @map("applicant_user_id")
+  message        String?
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  lastUpdateAt   DateTime    @updatedAt @map("last_update_at")
+  lastUpdateIp   String      @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String      @default("system") @map("last_update_by")
+  job            JobPosting  @relation(fields: [jobId], references: [id])
+  applicant      UserAccount @relation(fields: [applicantUserId], references: [id])
+
+  @@unique([jobId, applicantUserId])
+  @@index([applicantUserId, isActive])
+  @@map("job_application")
+}
+
+model TalentRating {
+  id             String      @id @default(uuid())
+  ratedForUserId String      @map("rated_for_user_id")
+  ratedByUserId  String      @map("rated_by_user_id")
+  ratingValue    Int         @map("rating_value")
+  comments       String?
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  lastUpdateAt   DateTime    @updatedAt @map("last_update_at")
+  lastUpdateIp   String      @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String      @default("system") @map("last_update_by")
+  ratedFor       UserAccount @relation("rating_for_user", fields: [ratedForUserId], references: [id])
+  ratedBy        UserAccount @relation("rating_by_user", fields: [ratedByUserId], references: [id])
+
+  @@index([ratedForUserId])
+  @@unique([ratedForUserId, ratedByUserId])
+  @@map("talent_rating")
+}
+
+model ChatThread {
+  id             String                  @id @default(uuid())
+  title          String?
+  isActive       Boolean                 @default(true) @map("is_active")
+  createdAt      DateTime                @default(now()) @map("created_at")
+  lastUpdateAt   DateTime                @updatedAt @map("last_update_at")
+  lastUpdateIp   String                  @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String                  @default("system") @map("last_update_by")
+  participants   ChatThreadParticipant[]
+  messages       ChatMessage[]
+  readStates     ChatReadState[]
+
+  @@map("chat_thread")
+}
+
+model ChatThreadParticipant {
+  id             String      @id @default(uuid())
+  threadId       String      @map("thread_id")
+  userId         String      @map("user_id")
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  lastUpdateAt   DateTime    @updatedAt @map("last_update_at")
+  lastUpdateIp   String      @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String      @default("system") @map("last_update_by")
+  thread         ChatThread  @relation(fields: [threadId], references: [id])
+  user           UserAccount @relation(fields: [userId], references: [id])
+
+  @@unique([threadId, userId])
+  @@index([userId, isActive])
+  @@map("chat_thread_participant")
+}
+
+model ChatMessage {
+  id             String      @id @default(uuid())
+  threadId       String      @map("thread_id")
+  senderUserId   String      @map("sender_user_id")
+  messageText    String      @map("message_text")
+  isSeen         Boolean     @default(false) @map("is_seen")
+  seenAt         DateTime?   @map("seen_at")
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  lastUpdateAt   DateTime    @updatedAt @map("last_update_at")
+  lastUpdateIp   String      @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String      @default("system") @map("last_update_by")
+  thread         ChatThread  @relation(fields: [threadId], references: [id])
+  sender         UserAccount @relation(fields: [senderUserId], references: [id])
+
+  @@index([threadId, createdAt])
+  @@map("chat_message")
+}
+
+model ChatReadState {
+  id                String      @id @default(uuid())
+  threadId          String      @map("thread_id")
+  userId            String      @map("user_id")
+  lastReadMessageId String?     @map("last_read_message_id")
+  lastReadAt        DateTime?   @map("last_read_at")
+  isActive          Boolean     @default(true) @map("is_active")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  lastUpdateAt      DateTime    @updatedAt @map("last_update_at")
+  lastUpdateIp      String      @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy      String      @default("system") @map("last_update_by")
+  thread            ChatThread  @relation(fields: [threadId], references: [id])
+  user              UserAccount @relation(fields: [userId], references: [id])
+
+  @@unique([threadId, userId])
+  @@map("chat_read_state")
+}
+
+model ChatBlockList {
+  id             String      @id @default(uuid())
+  blockedByUserId String     @map("blocked_by_user_id")
+  blockedUserId  String      @map("blocked_user_id")
+  reason         String?
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  lastUpdateAt   DateTime    @updatedAt @map("last_update_at")
+  lastUpdateIp   String      @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String      @default("system") @map("last_update_by")
+  blockedBy      UserAccount @relation("chat_block_by", fields: [blockedByUserId], references: [id])
+  blockedUser    UserAccount @relation("chat_blocked_user", fields: [blockedUserId], references: [id])
+
+  @@unique([blockedByUserId, blockedUserId])
+  @@map("chat_block_list")
+}
+
+model ProfileFlagReport {
+  id               String      @id @default(uuid())
+  reportedUserId   String      @map("reported_user_id")
+  raisedByUserId   String      @map("raised_by_user_id")
+  reason           FlagReason
+  details          String?
+  status           FlagStatus  @default(OPEN)
+  isActive         Boolean     @default(true) @map("is_active")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  lastUpdateAt     DateTime    @updatedAt @map("last_update_at")
+  lastUpdateIp     String      @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy     String      @default("system") @map("last_update_by")
+  reportedUser     UserAccount @relation("report_against_user", fields: [reportedUserId], references: [id])
+  raisedBy         UserAccount @relation("report_raised_by", fields: [raisedByUserId], references: [id])
+
+  @@index([status, createdAt])
+  @@map("profile_flag_report")
+}
+
+model AdminActionLog {
+  id             String      @id @default(uuid())
+  reportId       String?     @map("report_id")
+  actedOnUserId  String      @map("acted_on_user_id")
+  actedByUserId  String      @map("acted_by_user_id")
+  actionType     ActionType  @map("action_type")
+  notes          String?
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  lastUpdateAt   DateTime    @updatedAt @map("last_update_at")
+  lastUpdateIp   String      @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String      @default("system") @map("last_update_by")
+  actedOnUser    UserAccount @relation("admin_action_on_user", fields: [actedOnUserId], references: [id])
+  actedByUser    UserAccount @relation("admin_action_taken_by", fields: [actedByUserId], references: [id])
+
+  @@index([actedOnUserId, createdAt])
+  @@map("admin_action_log")
+}
+
+model HelpFeedback {
+  id             String      @id @default(uuid())
+  userId         String      @map("user_id")
+  subject        String
+  message        String
+  isResolved     Boolean     @default(false) @map("is_resolved")
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  lastUpdateAt   DateTime    @updatedAt @map("last_update_at")
+  lastUpdateIp   String      @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String      @default("system") @map("last_update_by")
+  user           UserAccount @relation(fields: [userId], references: [id])
+
+  @@index([isResolved, createdAt])
+  @@map("help_feedback")
+}
+
+model CloneAuditAdmin {
+  id             String    @id @default(uuid())
+  sourceTable    String    @map("source_table")
+  sourceId       String    @map("source_id")
+  actionType     String    @map("action_type")
+  payloadJson    Json      @map("payload_json")
+  triggeredAt    DateTime  @default(now()) @map("triggered_at")
+  isActive       Boolean   @default(true) @map("is_active")
+  lastUpdateAt   DateTime  @updatedAt @map("last_update_at")
+  lastUpdateIp   String    @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String    @default("system") @map("last_update_by")
+
+  @@index([sourceTable, sourceId, triggeredAt])
+  @@map("clone_audit_admin")
+}
+
+model CloneAuditPurchase {
+  id             String    @id @default(uuid())
+  sourceTable    String    @map("source_table")
+  sourceId       String    @map("source_id")
+  purchaseRef    String?   @map("purchase_ref")
+  payloadJson    Json      @map("payload_json")
+  triggeredAt    DateTime  @default(now()) @map("triggered_at")
+  isActive       Boolean   @default(true) @map("is_active")
+  lastUpdateAt   DateTime  @updatedAt @map("last_update_at")
+  lastUpdateIp   String    @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy   String    @default("system") @map("last_update_by")
+
+  @@index([sourceTable, sourceId, triggeredAt])
+  @@map("clone_audit_purchase")
+}

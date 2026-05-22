@@ -1,0 +1,68 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards
+} from "@nestjs/common";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { Audit } from "../../common/decorators/audit.decorator";
+import { CurrentUser } from "../../common/decorators/current-user.decorator";
+import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { ProfilesService } from "./profiles.service";
+import { UpdateTalentProfileDto } from "./dto/update-talent-profile.dto";
+import { UpdateOrgProfileDto } from "./dto/update-org-profile.dto";
+import { SetProfileTagsDto } from "./dto/set-profile-tags.dto";
+import { RateTalentDto } from "./dto/rate-talent.dto";
+
+@ApiTags("profiles")
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller("profiles")
+export class ProfilesController {
+  constructor(private readonly profilesService: ProfilesService) {}
+
+  @Get(":userId")
+  getProfile(@Param("userId") userId: string) {
+    return this.profilesService.getUserProfile(userId);
+  }
+
+  @Patch("talent/me")
+  updateTalentProfile(
+    @CurrentUser() user: { userId: string },
+    @Body() dto: UpdateTalentProfileDto,
+    @Audit() audit: { ip: string; updatedBy: string }
+  ) {
+    return this.profilesService.updateTalentProfile(user.userId, dto, audit);
+  }
+
+  @Patch("org/me")
+  updateOrgProfile(
+    @CurrentUser() user: { userId: string },
+    @Body() dto: UpdateOrgProfileDto,
+    @Audit() audit: { ip: string; updatedBy: string }
+  ) {
+    return this.profilesService.updateOrgProfile(user.userId, dto, audit);
+  }
+
+  @Post("tags/me")
+  setProfileTags(
+    @CurrentUser() user: { userId: string },
+    @Body() dto: SetProfileTagsDto,
+    @Audit() audit: { ip: string; updatedBy: string }
+  ) {
+    return this.profilesService.setProfileTags(user.userId, dto, audit);
+  }
+
+  @Post(":userId/rate")
+  rateTalent(
+    @CurrentUser() user: { userId: string },
+    @Param("userId") targetUserId: string,
+    @Body() dto: RateTalentDto,
+    @Audit() audit: { ip: string; updatedBy: string }
+  ) {
+    return this.profilesService.rateTalent(user.userId, targetUserId, dto, audit);
+  }
+}

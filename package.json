@@ -1,0 +1,24 @@
+{
+  "name": "eof-talent-app",
+  "private": true,
+  "version": "1.0.0",
+  "description": "EOF Talent marketplace monorepo",
+  "workspaces": [
+    "backend",
+    "mobile-app",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test --workspaces",
+    "start:backend": "npm run start:dev --workspace backend",
+    "start:mobile": "npm run start --workspace mobile-app",
+    "prisma:generate": "npm run prisma:generate --workspace backend",
+    "prisma:migrate": "npm run prisma:migrate --workspace backend",
+    "prisma:seed": "npm run prisma:seed --workspace backend"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  }
+}
