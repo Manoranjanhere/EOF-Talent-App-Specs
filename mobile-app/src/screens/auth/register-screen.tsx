@@ -1,26 +1,55 @@
 import React, { useState } from "react";
-import { Alert, Button, ScrollView, Text, TextInput } from "react-native";
+import { Alert, Text } from "react-native";
+import { GroupId } from "@eof/shared";
+import {
+  AuthScreen,
+  LabeledInput,
+  LinkButton,
+  PrimaryButton,
+  RoleSelector,
+  SegmentedControl
+} from "../../components/auth-ui";
 import { registerUser } from "../../services/auth.service";
 import { useAuth } from "../../state/auth-context";
 
-export function RegisterScreen() {
+type ContactMode = "email" | "phone";
+
+export function RegisterScreen({ navigation }: { navigation: any }) {
+  const [contactMode, setContactMode] = useState<ContactMode>("email");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [password, setPassword] = useState("");
-  const [groupId, setGroupId] = useState("1");
+  const [groupId, setGroupId] = useState<number>(GroupId.Talent);
   const [loading, setLoading] = useState(false);
   const auth = useAuth();
 
   const onRegister = async () => {
+    if (!fullName.trim()) {
+      Alert.alert("Missing name", "Please enter your full name.");
+      return;
+    }
+    if (contactMode === "email" && !email.trim()) {
+      Alert.alert("Missing email", "Please enter your email address.");
+      return;
+    }
+    if (contactMode === "phone" && !mobileNumber.trim()) {
+      Alert.alert("Missing mobile", "Please enter your mobile number.");
+      return;
+    }
+    if (password.length < 8) {
+      Alert.alert("Weak password", "Password must be at least 8 characters.");
+      return;
+    }
+
     try {
       setLoading(true);
       const response = await registerUser({
-        fullName,
-        email: email || undefined,
-        mobileNumber: mobileNumber || undefined,
+        fullName: fullName.trim(),
+        email: contactMode === "email" ? email.trim() : undefined,
+        mobileNumber: contactMode === "phone" ? mobileNumber.trim() : undefined,
         password,
-        groupId: Number(groupId)
+        groupId
       });
       auth.signIn({
         accessToken: response.tokens.accessToken,
@@ -35,46 +64,68 @@ export function RegisterScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
-      <Text style={{ fontSize: 24, fontWeight: "700" }}>Register</Text>
-      <TextInput
-        placeholder="Full Name"
+    <AuthScreen
+      title="Create account"
+      subtitle="Choose your role and sign up with email or mobile."
+      footer={
+        <LinkButton title="Already have an account? Sign in" onPress={() => navigation.goBack()} />
+      }
+    >
+      <RoleSelector value={groupId} onChange={setGroupId} />
+
+      <LabeledInput
+        label="Full name"
+        placeholder="Your name"
         value={fullName}
         onChangeText={setFullName}
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
       />
-      <TextInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
+
+      <SegmentedControl
+        value={contactMode}
+        onChange={setContactMode}
+        options={[
+          { value: "email", label: "Email" },
+          { value: "phone", label: "Mobile" }
+        ]}
       />
-      <TextInput
-        placeholder="Mobile Number"
-        value={mobileNumber}
-        onChangeText={setMobileNumber}
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-      />
-      <TextInput
-        placeholder="Password"
+
+      {contactMode === "email" ? (
+        <LabeledInput
+          label="Email"
+          placeholder="you@example.com"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+      ) : (
+        <LabeledInput
+          label="Mobile number"
+          placeholder="10-digit mobile number"
+          value={mobileNumber}
+          onChangeText={setMobileNumber}
+          keyboardType="phone-pad"
+        />
+      )}
+
+      <LabeledInput
+        label="Password"
+        placeholder="Minimum 8 characters"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
       />
-      <TextInput
-        placeholder="Group Id (1 talent, 2 employer/agency)"
-        value={groupId}
-        onChangeText={setGroupId}
-        keyboardType="numeric"
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-      />
-      <Button
-        title={loading ? "Registering..." : "Register"}
+
+      <Text style={{ color: "#94a3b8", fontSize: 12, lineHeight: 18 }}>
+        Use either email or mobile for login — not both required at signup.
+      </Text>
+
+      <PrimaryButton
+        title={loading ? "Creating account..." : "Create account"}
         onPress={onRegister}
         disabled={loading}
+        loading={loading}
       />
-    </ScrollView>
+    </AuthScreen>
   );
 }

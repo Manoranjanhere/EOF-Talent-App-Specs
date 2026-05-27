@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
+import { join } from "path";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { PrismaModule } from "./database/prisma.module";
 import { AuditContextInterceptor } from "./common/interceptors/audit-context.interceptor";
@@ -21,7 +22,11 @@ import { HealthModule } from "./modules/health/health.module";
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true
+      isGlobal: true,
+      envFilePath: [
+        join(process.cwd(), ".env"),
+        join(process.cwd(), "backend", ".env")
+      ]
     }),
     ThrottlerModule.forRoot({
       throttlers: [

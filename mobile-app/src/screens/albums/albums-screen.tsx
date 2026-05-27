@@ -1,5 +1,17 @@
 import React, { useState } from "react";
-import { Alert, Button, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, Text } from "react-native";
+import {
+  Card,
+  EmptyState,
+  LabeledInput,
+  ListCard,
+  PrimaryButton,
+  ScreenLayout,
+  SecondaryButton,
+  SectionTitle,
+  SegmentedControl,
+  colors
+} from "../../components/ui";
 import { createAlbum, grantAlbumAccess, listAlbumGrants } from "../../services/albums.service";
 import { useAuth } from "../../state/auth-context";
 
@@ -9,25 +21,27 @@ export function AlbumsScreen() {
   const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
   const [albumId, setAlbumId] = useState("");
   const [grantedToUserId, setGrantedToUserId] = useState("");
-  const [grantedDays, setGrantedDays] = useState<30 | 60 | 90>(30);
+  const [grantDaysKey, setGrantDaysKey] = useState<"30" | "60" | "90">("30");
+  const grantedDays = Number(grantDaysKey) as 30 | 60 | 90;
   const [grants, setGrants] = useState<any[]>([]);
 
   const onCreateAlbum = async () => {
-    if (!accessToken) return;
+    if (!accessToken || !title.trim()) return;
     try {
-      const album = await createAlbum(accessToken, { title, visibility });
+      const album = await createAlbum(accessToken, { title: title.trim(), visibility });
       setAlbumId((album as any).id);
-      Alert.alert("Album created", `Album ID: ${(album as any).id}`);
+      Alert.alert("Album created", `Album ID copied to access section.`);
     } catch (error) {
       Alert.alert("Error", (error as Error).message);
     }
   };
 
   const onGrantAccess = async () => {
-    if (!accessToken || !albumId) return;
+    if (!accessToken || !albumId || !grantedToUserId) return;
     try {
       await grantAlbumAccess(accessToken, albumId, { grantedToUserId, grantedDays });
-      Alert.alert("Success", "Access granted");
+      Alert.alert("Success", "Private album access granted.");
+      await onLoadGrants();
     } catch (error) {
       Alert.alert("Error", (error as Error).message);
     }
@@ -44,46 +58,57 @@ export function AlbumsScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
-      <Text style={{ fontSize: 20, fontWeight: "700" }}>Photo Albums</Text>
-      <TextInput
-        value={title}
-        onChangeText={setTitle}
-        placeholder="Album title"
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-      />
-      <Button
-        title={`Visibility: ${visibility} (tap to toggle)`}
-        onPress={() => setVisibility(visibility === "PUBLIC" ? "PRIVATE" : "PUBLIC")}
-      />
-      <Button title="Create Album" onPress={onCreateAlbum} />
-
-      <View style={{ marginTop: 10, gap: 8 }}>
-        <Text style={{ fontWeight: "600" }}>Private access controls</Text>
-        <TextInput
-          value={albumId}
-          onChangeText={setAlbumId}
-          placeholder="Album ID"
-          style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
+    <ScreenLayout title="Photo albums" subtitle="Up to 5 albums · 9 photos + 1 video each">
+      <Card>
+        <SectionTitle title="Create album" />
+        <LabeledInput label="Album title" value={title} onChangeText={setTitle} placeholder="Portfolio 2026" />
+        <SegmentedControl
+          value={visibility}
+          onChange={setVisibility}
+          options={[
+            { value: "PUBLIC", label: "Public" },
+            { value: "PRIVATE", label: "Private" }
+          ]}
         />
-        <TextInput
+        <PrimaryButton title="Create album" onPress={onCreateAlbum} />
+      </Card>
+
+      <Card>
+        <SectionTitle title="Private access" />
+        <LabeledInput label="Album ID" value={albumId} onChangeText={setAlbumId} placeholder="Paste album UUID" />
+        <LabeledInput
+          label="Grant to user ID"
           value={grantedToUserId}
           onChangeText={setGrantedToUserId}
-          placeholder="User ID to grant"
-          style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
+          placeholder="User UUID"
         />
-        <Button
-          title={`Grant days: ${grantedDays} (tap to cycle)`}
-          onPress={() => setGrantedDays(grantedDays === 30 ? 60 : grantedDays === 60 ? 90 : 30)}
+        <SegmentedControl
+          value={grantDaysKey}
+          onChange={setGrantDaysKey}
+          options={[
+            { value: "30", label: "30 days" },
+            { value: "60", label: "60 days" },
+            { value: "90", label: "90 days" }
+          ]}
         />
-        <Button title="Grant Access" onPress={onGrantAccess} />
-        <Button title="Load Access List" onPress={onLoadGrants} />
-        {grants.map((grant) => (
-          <Text key={grant.id}>
-            {grant.grantedToUser?.fullName ?? grant.grantedToUserId} - expires {String(grant.expiresAt)}
-          </Text>
-        ))}
-      </View>
-    </ScrollView>
+        <PrimaryButton title="Grant access" onPress={onGrantAccess} />
+        <SecondaryButton title="Refresh access list" onPress={onLoadGrants} />
+        {grants.length === 0 ? (
+          <EmptyState message="No access grants loaded yet." />
+        ) : (
+          grants.map((grant) => (
+            <ListCard
+              key={grant.id}
+              title={grant.grantedToUser?.fullName ?? grant.grantedToUserId}
+              meta={[`Expires: ${String(grant.expiresAt)}`, grant.isActive ? "Active" : "Revoked"]}
+              badge={grant.isActive ? "ACTIVE" : "OFF"}
+            />
+          ))
+        )}
+      </Card>
+      <Text style={{ color: colors.muted, fontSize: 12, textAlign: "center" }}>
+        Private albums can be shared for 30, 60, or 90 days.
+      </Text>
+    </ScreenLayout>
   );
 }

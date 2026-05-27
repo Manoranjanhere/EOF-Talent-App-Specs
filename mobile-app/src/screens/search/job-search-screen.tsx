@@ -1,45 +1,60 @@
 import React, { useState } from "react";
-import { Alert, Button, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert } from "react-native";
+import {
+  Card,
+  EmptyState,
+  LabeledInput,
+  ListCard,
+  PrimaryButton,
+  ScreenLayout,
+  SectionTitle
+} from "../../components/ui";
 import { searchJobs } from "../../services/search.service";
 
 export function JobSearchScreen() {
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
   const [cards, setCards] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const onSearch = async () => {
     try {
+      setLoading(true);
       const result = await searchJobs({ city, country });
       setCards((result as any).cards ?? []);
     } catch (error) {
       Alert.alert("Search error", (error as Error).message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
-      <Text style={{ fontSize: 20, fontWeight: "700" }}>Job Board Search</Text>
-      <TextInput
-        value={city}
-        onChangeText={setCity}
-        placeholder="City"
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-      />
-      <TextInput
-        value={country}
-        onChangeText={setCountry}
-        placeholder="Country"
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-      />
-      <Button title="Search Jobs" onPress={onSearch} />
-      {cards.map((card) => (
-        <View key={card.id} style={{ borderWidth: 1, borderRadius: 12, padding: 14 }}>
-          <Text style={{ fontSize: 16, fontWeight: "700" }}>{card.title}</Text>
-          <Text>{card.subtitle}</Text>
-          <Text>{card.location}</Text>
-          <Text>Pay range: {String(card.payRange?.[0] ?? "-")} - {String(card.payRange?.[1] ?? "-")}</Text>
-        </View>
-      ))}
-    </ScrollView>
+    <ScreenLayout title="Job board" subtitle="Find casting calls and gigs near you">
+      <Card>
+        <SectionTitle title="Search jobs" />
+        <LabeledInput label="City" value={city} onChangeText={setCity} placeholder="Mumbai" />
+        <LabeledInput label="Country" value={country} onChangeText={setCountry} placeholder="India" />
+        <PrimaryButton title="Search jobs" onPress={onSearch} loading={loading} disabled={loading} />
+      </Card>
+
+      {cards.length === 0 ? (
+        <EmptyState message="No jobs found. Try broadening your search." />
+      ) : (
+        cards.map((card) => (
+          <ListCard
+            key={card.id}
+            title={card.title}
+            subtitle={card.subtitle}
+            meta={[
+              card.location || "Location N/A",
+              `Pay: ${card.payRange?.[0] ?? "-"} – ${card.payRange?.[1] ?? "-"}`,
+              `By: ${card.postedBy ?? "Unknown"}`
+            ]}
+            badge="JOB"
+          />
+        ))
+      )}
+    </ScreenLayout>
   );
 }

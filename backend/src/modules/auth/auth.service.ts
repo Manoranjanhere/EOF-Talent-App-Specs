@@ -1,8 +1,12 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
+  Logger,
+  NotFoundException,
   UnauthorizedException
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { UserAccount } from "@prisma/client";
@@ -11,6 +15,7 @@ import { PrismaService } from "../../database/prisma.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { MobileOtpLoginDto } from "./dto/mobile-otp-login.dto";
+import { SendMobileOtpDto } from "./dto/send-mobile-otp.dto";
 
 type AuditData = {
   ip: string;
@@ -19,6 +24,13 @@ type AuditData = {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
+  private readonly otpStore = new Map<
+    string,
+    { code: string; expiresAt: number }
+  >();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
@@ -26,45 +38,96 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto, audit: AuditData) {
-    if (!dto.email && !dto.mobileNumber) {
+    const email = dto.email?.trim().toLowerCase() || undefined;
+    const mobileNumber = dto.mobileNumber?.trim() || undefined;
+
+    if (!email && !mobileNumber) {
       throw new BadRequestException("Email or mobile number is required");
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
-    const user = await this.prisma.userAccount.create({
-      data: {
-        fullName: dto.fullName,
-        email: dto.email,
-        mobileNumber: dto.mobileNumber,
-        passwordHash,
-        lastUpdateIp: audit.ip,
-        lastUpdateBy: audit.updatedBy,
-        roles: {
-          create: {
-            groupId: dto.groupId,
-            isPrimary: true,
-            lastUpdateIp: audit.ip,
-            lastUpdateBy: audit.updatedBy
-          }
-        },
-        profileTalent: dto.groupId === 1 ? {
-          create: {
-            lastUpdateIp: audit.ip,
-            lastUpdateBy: audit.updatedBy
-          }
-        } : undefined
-      },
-      include: { roles: true }
-    });
+    if (email) {
+      const existingEmail = await this.prisma.userAccount.findUnique({
+        where: { email }
+      });
+      if (existingEmail) {
+        throw new ConflictException(
+          "An account with this email already exists. Please sign in instead."
+        );
+      }
+    }
 
-    return this.issueTokens(user);
+    if (mobileNumber) {
+      const existingMobile = await this.prisma.userAccount.findUnique({
+        where: { mobileNumber }
+      });
+      if (existingMobile) {
+        throw new ConflictException(
+          "An account with this mobile number already exists. Please sign in instead."
+        );
+      }
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+
+    try {
+      const user = await this.prisma.userAccount.create({
+        data: {
+          fullName: dto.fullName.trim(),
+          email,
+          mobileNumber,
+          passwordHash,
+          lastUpdateIp: audit.ip,
+          lastUpdateBy: audit.updatedBy,
+          roles: {
+            create: {
+              groupId: dto.groupId,
+              isPrimary: true,
+              lastUpdateIp: audit.ip,
+              lastUpdateBy: audit.updatedBy
+            }
+          },
+          profileTalent:
+            dto.groupId === 1
+              ? {
+                  create: {
+                    lastUpdateIp: audit.ip,
+                    lastUpdateBy: audit.updatedBy
+                  }
+                }
+              : undefined
+        },
+        include: { roles: true }
+      });
+
+      return this.issueTokens(user);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const target = (error.meta?.target as string[] | undefined) ?? [];
+        if (target.includes("email")) {
+          throw new ConflictException(
+            "An account with this email already exists. Please sign in instead."
+          );
+        }
+        if (target.includes("mobile_number")) {
+          throw new ConflictException(
+            "An account with this mobile number already exists. Please sign in instead."
+          );
+        }
+        throw new ConflictException("Account already exists. Please sign in instead.");
+      }
+      throw error;
+    }
   }
 
   async login(dto: LoginDto, audit: AuditData) {
+    const email = dto.email?.trim().toLowerCase();
+    const mobileNumber = dto.mobileNumber?.trim();
+
     const user = await this.prisma.userAccount.findFirst({
-      where: dto.email
-        ? { email: dto.email }
-        : { mobileNumber: dto.mobileNumber },
+      where: email ? { email } : { mobileNumber },
       include: { roles: true }
     });
 
@@ -101,19 +164,35 @@ export class AuthService {
   }
 
   async loginWithMobileOtp(dto: MobileOtpLoginDto, audit: AuditData) {
-    const otpBypass = this.configService.get("OTP_TEST_BYPASS") === "true";
-    if (!otpBypass && dto.otpCode !== "123456") {
-      throw new UnauthorizedException("Invalid OTP");
+    const mobileNumber = this.normalizeMobile(dto.mobileNumber);
+    if (!mobileNumber) {
+      throw new BadRequestException("Mobile number is required");
     }
 
     const user = await this.prisma.userAccount.findUnique({
-      where: { mobileNumber: dto.mobileNumber },
+      where: { mobileNumber },
       include: { roles: true }
     });
     if (!user) {
-      throw new UnauthorizedException("User not found");
+      throw new NotFoundException(
+        "No account found with this mobile number. Register with this mobile first."
+      );
     }
     this.assertLoginAllowed(user);
+
+    const otpRecord = this.otpStore.get(mobileNumber);
+    if (!otpRecord) {
+      throw new UnauthorizedException("OTP not requested. Please send OTP first.");
+    }
+    if (Date.now() > otpRecord.expiresAt) {
+      this.otpStore.delete(mobileNumber);
+      throw new UnauthorizedException("OTP expired. Please request a new OTP.");
+    }
+    if (otpRecord.code !== dto.otpCode.trim()) {
+      throw new UnauthorizedException("Invalid OTP");
+    }
+
+    this.otpStore.delete(mobileNumber);
 
     await this.prisma.userAccount.update({
       where: { id: user.id },
@@ -126,6 +205,63 @@ export class AuthService {
     });
 
     return this.issueTokens(user);
+  }
+
+  async sendMobileOtp(dto: SendMobileOtpDto) {
+    const mobileNumber = this.normalizeMobile(dto.mobileNumber);
+    if (!mobileNumber) {
+      throw new BadRequestException("Mobile number is required");
+    }
+
+    const user = await this.prisma.userAccount.findUnique({
+      where: { mobileNumber }
+    });
+    if (!user) {
+      throw new NotFoundException(
+        "No account found with this mobile number. Register with this mobile first, or sign in with email."
+      );
+    }
+    this.assertLoginAllowed(user);
+
+    const devMode = this.isOtpDevMode();
+    const otpCode = devMode
+      ? "123456"
+      : Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+
+    this.otpStore.set(mobileNumber, { code: otpCode, expiresAt });
+
+    if (devMode) {
+      this.logger.log(
+        `[DEV OTP] mobile=${mobileNumber} code=${otpCode} (valid 5 min; no SMS in MVP)`
+      );
+    } else {
+      this.logger.warn(
+        `OTP generated for ${mobileNumber} but SMS provider is not configured yet`
+      );
+    }
+
+    return {
+      success: true,
+      message: devMode
+        ? "OTP generated (dev mode). Check backend terminal or app hint."
+        : "OTP sent successfully",
+      expiresInSeconds: 300,
+      ...(devMode ? { otpCode } : {})
+    };
+  }
+
+  private normalizeMobile(value?: string): string | undefined {
+    const trimmed = value?.trim();
+    return trimmed || undefined;
+  }
+
+  private isOtpDevMode(): boolean {
+    const flag = this.configService.get<string>("OTP_TEST_BYPASS");
+    if (flag !== undefined && flag !== "") {
+      return ["true", "1", "yes"].includes(flag.toLowerCase());
+    }
+    return this.configService.get<string>("NODE_ENV") !== "production";
   }
 
   private assertLoginAllowed(user: UserAccount) {

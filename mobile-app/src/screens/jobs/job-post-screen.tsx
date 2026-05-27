@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { Alert, Button, ScrollView, Text, TextInput } from "react-native";
+import { Alert } from "react-native";
+import {
+  Card,
+  LabeledInput,
+  PrimaryButton,
+  ScreenLayout,
+  SectionTitle
+} from "../../components/ui";
 import { postJob } from "../../services/jobs.service";
 import { useAuth } from "../../state/auth-context";
 
@@ -9,53 +16,51 @@ export function JobPostScreen() {
   const [miniDescription, setMiniDescription] = useState("");
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const onPost = async () => {
     if (!accessToken) return;
+    if (!title.trim() || !miniDescription.trim()) {
+      Alert.alert("Missing fields", "Title and description are required.");
+      return;
+    }
     try {
+      setLoading(true);
       await postJob(accessToken, {
-        title,
-        miniDescription,
+        title: title.trim(),
+        miniDescription: miniDescription.trim(),
         city,
         country,
         primaryTagIds: [],
         secondaryTagIds: []
       });
-      Alert.alert("Success", "Job posted");
+      Alert.alert("Success", "Job posted successfully (90-day validity).");
+      setTitle("");
+      setMiniDescription("");
     } catch (error) {
       Alert.alert("Error", (error as Error).message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
-      <Text style={{ fontSize: 20, fontWeight: "700" }}>Post a Job</Text>
-      <TextInput
-        value={title}
-        onChangeText={setTitle}
-        placeholder="Title"
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-      />
-      <TextInput
-        value={miniDescription}
-        onChangeText={setMiniDescription}
-        placeholder="Mini description"
-        multiline
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10, minHeight: 120 }}
-      />
-      <TextInput
-        value={city}
-        onChangeText={setCity}
-        placeholder="City"
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-      />
-      <TextInput
-        value={country}
-        onChangeText={setCountry}
-        placeholder="Country"
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-      />
-      <Button title="Post Job" onPress={onPost} />
-    </ScrollView>
+    <ScreenLayout title="Post a job" subtitle="Reach talent on the EOF marketplace">
+      <Card>
+        <SectionTitle title="Job details" />
+        <LabeledInput label="Job title" value={title} onChangeText={setTitle} placeholder="Lead actor for web series" />
+        <LabeledInput
+          label="Description"
+          value={miniDescription}
+          onChangeText={setMiniDescription}
+          placeholder="Shoot dates, requirements, pay..."
+          multiline
+          style={{ minHeight: 110, textAlignVertical: "top" }}
+        />
+        <LabeledInput label="City" value={city} onChangeText={setCity} placeholder="Mumbai" />
+        <LabeledInput label="Country" value={country} onChangeText={setCountry} placeholder="India" />
+        <PrimaryButton title="Publish job" onPress={onPost} loading={loading} disabled={loading} />
+      </Card>
+    </ScreenLayout>
   );
 }

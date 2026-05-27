@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { Alert, Button, ScrollView, Text, TextInput } from "react-native";
+import { Alert } from "react-native";
+import {
+  Card,
+  LabeledInput,
+  PrimaryButton,
+  ScreenLayout,
+  SectionTitle
+} from "../../components/ui";
 import { updateOrgProfile } from "../../services/profile.service";
 import { useAuth } from "../../state/auth-context";
 
@@ -21,7 +28,7 @@ export function OrgProfileScreen() {
         taxId,
         contactName
       });
-      Alert.alert("Saved", "Organization profile updated");
+      Alert.alert("Saved", "Company profile updated successfully.");
     } catch (error) {
       Alert.alert("Error", (error as Error).message);
     } finally {
@@ -30,34 +37,21 @@ export function OrgProfileScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
-      <Text style={{ fontSize: 20, fontWeight: "700" }}>Employer/Agency Profile</Text>
-      <TextInput
-        value={orgTypeId}
-        onChangeText={setOrgTypeId}
-        keyboardType="numeric"
-        placeholder="Org Type Id"
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-      />
-      <TextInput
-        value={legalName}
-        onChangeText={setLegalName}
-        placeholder="Legal Name"
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-      />
-      <TextInput
-        value={taxId}
-        onChangeText={setTaxId}
-        placeholder="Tax Id"
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-      />
-      <TextInput
-        value={contactName}
-        onChangeText={setContactName}
-        placeholder="Contact Name"
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-      />
-      <Button title={loading ? "Saving..." : "Save"} onPress={onSave} disabled={loading} />
-    </ScrollView>
+    <ScreenLayout title="Company profile" subtitle="Employer or agency business details">
+      <Card>
+        <SectionTitle title="Organization" />
+        <LabeledInput
+          label="Org type ID"
+          value={orgTypeId}
+          onChangeText={setOrgTypeId}
+          keyboardType="numeric"
+          hint="1=Talent Employer, 2=Agency, 3=Venue, 4=Production"
+        />
+        <LabeledInput label="Legal name" value={legalName} onChangeText={setLegalName} placeholder="Company name" />
+        <LabeledInput label="Tax ID" value={taxId} onChangeText={setTaxId} placeholder="GST / Tax number" />
+        <LabeledInput label="Contact person" value={contactName} onChangeText={setContactName} placeholder="Hiring manager" />
+        <PrimaryButton title="Save company profile" onPress={onSave} loading={loading} disabled={loading} />
+      </Card>
+    </ScreenLayout>
   );
 }

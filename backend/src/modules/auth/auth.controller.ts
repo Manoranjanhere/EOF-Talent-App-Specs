@@ -5,6 +5,7 @@ import { AuthService } from "./auth.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { MobileOtpLoginDto } from "./dto/mobile-otp-login.dto";
+import { SendMobileOtpDto } from "./dto/send-mobile-otp.dto";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -33,5 +34,10 @@ export class AuthController {
     @Audit() audit: { ip: string; updatedBy: string }
   ) {
     return this.authService.loginWithMobileOtp(dto, audit);
+  }
+
+  @Post("login/mobile-otp/send")
+  sendMobileOtp(@Body() dto: SendMobileOtpDto) {
+    return this.authService.sendMobileOtp(dto);
   }
 }

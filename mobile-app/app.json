@@ -15,7 +15,9 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.anonymous.eoftalentapp",
+      "usesCleartextTraffic": true
     },
     "web": {
       "bundler": "metro"

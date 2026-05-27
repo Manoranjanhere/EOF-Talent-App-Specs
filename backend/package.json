@@ -5,7 +5,7 @@
   "scripts": {
     "build": "nest build",
     "start": "nest start",
-    "start:dev": "nest start --watch",
+    "start:dev": "npm run build --workspace @eof/shared && nest start --watch",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "jest",
     "prisma:generate": "prisma generate",
@@ -20,6 +20,7 @@
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.8",
+    "@nestjs/platform-socket.io": "^10.4.22",
     "@nestjs/swagger": "^7.4.0",
     "@nestjs/throttler": "^6.2.1",
     "@nestjs/websockets": "^10.4.8",

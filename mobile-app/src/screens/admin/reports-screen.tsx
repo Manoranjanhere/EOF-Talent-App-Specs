@@ -1,33 +1,56 @@
 import React, { useState } from "react";
-import { Alert, Button, ScrollView, Text, View } from "react-native";
+import { Alert } from "react-native";
+import {
+  Card,
+  EmptyState,
+  ListCard,
+  PrimaryButton,
+  ScreenLayout,
+  SectionTitle
+} from "../../components/ui";
 import { listFlagReports } from "../../services/admin.service";
 import { useAuth } from "../../state/auth-context";
 
 export function ReportsScreen() {
   const { accessToken } = useAuth();
   const [reports, setReports] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const loadReports = async () => {
     if (!accessToken) return;
     try {
+      setLoading(true);
       const result = await listFlagReports(accessToken);
       setReports(result as any[]);
     } catch (error) {
       Alert.alert("Error", (error as Error).message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
-      <Text style={{ fontSize: 20, fontWeight: "700" }}>Reported Profiles</Text>
-      <Button title="Refresh reports" onPress={loadReports} />
-      {reports.map((report) => (
-        <View key={report.id} style={{ borderWidth: 1, borderRadius: 10, padding: 10 }}>
-          <Text style={{ fontWeight: "700" }}>{report.reason}</Text>
-          <Text>Status: {report.status}</Text>
-          <Text>Reported user: {report.reportedUser?.fullName ?? report.reportedUserId}</Text>
-        </View>
-      ))}
-    </ScrollView>
+    <ScreenLayout title="Moderation queue" subtitle="Review flagged profiles and take action">
+      <Card>
+        <PrimaryButton title="Refresh reports" onPress={loadReports} loading={loading} disabled={loading} />
+      </Card>
+
+      {reports.length === 0 ? (
+        <EmptyState message="No open reports. Tap refresh to load." />
+      ) : (
+        reports.map((report) => (
+          <ListCard
+            key={report.id}
+            title={report.reason}
+            subtitle={report.reportedUser?.fullName ?? report.reportedUserId}
+            badge={report.status}
+            meta={[
+              `Report ID: ${report.id}`,
+              `Raised by: ${report.raisedBy?.fullName ?? report.raisedByUserId}`
+            ]}
+          />
+        ))
+      )}
+    </ScreenLayout>
   );
 }

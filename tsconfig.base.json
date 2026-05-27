@@ -7,12 +7,6 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
-    "paths": {
-      "@eof/shared": [
-        "packages/shared/src"
-      ]
-    }
+    "forceConsistentCasingInFileNames": true
   }
 }

@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { Alert, Button, ScrollView, Text, TextInput } from "react-native";
+import { Alert } from "react-native";
+import {
+  Card,
+  LabeledInput,
+  PrimaryButton,
+  ScreenLayout,
+  SectionTitle
+} from "../../components/ui";
 import { updateTalentProfile } from "../../services/profile.service";
 import { useAuth } from "../../state/auth-context";
 
@@ -16,7 +23,7 @@ export function TalentProfileScreen() {
     try {
       setLoading(true);
       await updateTalentProfile(accessToken, { fullName, city, country, miniBio });
-      Alert.alert("Saved", "Talent profile updated");
+      Alert.alert("Saved", "Talent profile updated successfully.");
     } catch (error) {
       Alert.alert("Error", (error as Error).message);
     } finally {
@@ -25,34 +32,22 @@ export function TalentProfileScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
-      <Text style={{ fontSize: 20, fontWeight: "700" }}>Talent Profile</Text>
-      <TextInput
-        value={fullName}
-        onChangeText={setFullName}
-        placeholder="Name"
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-      />
-      <TextInput
-        value={city}
-        onChangeText={setCity}
-        placeholder="City"
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-      />
-      <TextInput
-        value={country}
-        onChangeText={setCountry}
-        placeholder="Country"
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-      />
-      <TextInput
-        value={miniBio}
-        onChangeText={setMiniBio}
-        placeholder="Mini bio"
-        multiline
-        style={{ borderWidth: 1, borderRadius: 8, padding: 10, minHeight: 120 }}
-      />
-      <Button title={loading ? "Saving..." : "Save"} onPress={onSave} disabled={loading} />
-    </ScrollView>
+    <ScreenLayout title="My profile" subtitle="Showcase your talent to employers and agencies">
+      <Card>
+        <SectionTitle title="Basic info" />
+        <LabeledInput label="Display name" value={fullName} onChangeText={setFullName} placeholder="Your name" />
+        <LabeledInput label="City" value={city} onChangeText={setCity} placeholder="Mumbai" />
+        <LabeledInput label="Country" value={country} onChangeText={setCountry} placeholder="India" />
+        <LabeledInput
+          label="Mini bio"
+          value={miniBio}
+          onChangeText={setMiniBio}
+          placeholder="Tell employers about your experience..."
+          multiline
+          style={{ minHeight: 100, textAlignVertical: "top" }}
+        />
+        <PrimaryButton title="Save profile" onPress={onSave} loading={loading} disabled={loading} />
+      </Card>
+    </ScreenLayout>
   );
 }

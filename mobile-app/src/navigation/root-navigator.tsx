@@ -2,6 +2,7 @@ import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { GroupId } from "@eof/shared";
+import { colors } from "../components/ui";
 import { useAuth } from "../state/auth-context";
 import { LoginScreen } from "../screens/auth/login-screen";
 import { RegisterScreen } from "../screens/auth/register-screen";
@@ -20,6 +21,20 @@ import { UserActionsScreen } from "../screens/admin/user-actions-screen";
 const AuthStack = createNativeStackNavigator();
 const AppTabs = createBottomTabNavigator();
 
+const tabScreenOptions = {
+  headerShown: false,
+  tabBarStyle: {
+    backgroundColor: colors.card,
+    borderTopColor: colors.border,
+    height: 62,
+    paddingBottom: 8,
+    paddingTop: 6
+  },
+  tabBarActiveTintColor: colors.primary,
+  tabBarInactiveTintColor: colors.muted,
+  tabBarLabelStyle: { fontSize: 11, fontWeight: "600" as const }
+};
+
 function TabsNavigator() {
   const { user } = useAuth();
   const roles = user?.roles ?? [];
@@ -30,18 +45,26 @@ function TabsNavigator() {
     roles.includes(GroupId.SuperAdmin);
 
   return (
-    <AppTabs.Navigator>
-      <AppTabs.Screen name="Dashboard" component={DashboardScreen} />
-      <AppTabs.Screen name="Members" component={MemberSearchScreen} />
+    <AppTabs.Navigator screenOptions={tabScreenOptions}>
+      <AppTabs.Screen name="Home" component={DashboardScreen} options={{ title: "Home" }} />
+      <AppTabs.Screen name="Discover" component={MemberSearchScreen} options={{ title: "Discover" }} />
       <AppTabs.Screen name="Jobs" component={JobSearchScreen} />
       <AppTabs.Screen name="Chat" component={ChatScreen} />
       <AppTabs.Screen name="Albums" component={AlbumsScreen} />
-      <AppTabs.Screen name="TalentProfile" component={TalentProfileScreen} />
+      <AppTabs.Screen name="Profile" component={TalentProfileScreen} />
       <AppTabs.Screen name="Help" component={HelpFeedbackScreen} />
-      {isEmployer && <AppTabs.Screen name="OrgProfile" component={OrgProfileScreen} />}
-      {isEmployer && <AppTabs.Screen name="PostJob" component={JobPostScreen} />}
-      {isAdmin && <AppTabs.Screen name="Reports" component={ReportsScreen} />}
-      {isAdmin && <AppTabs.Screen name="UserActions" component={UserActionsScreen} />}
+      {isEmployer && (
+        <AppTabs.Screen name="Company" component={OrgProfileScreen} options={{ title: "Company" }} />
+      )}
+      {isEmployer && (
+        <AppTabs.Screen name="PostJob" component={JobPostScreen} options={{ title: "Post" }} />
+      )}
+      {isAdmin && (
+        <AppTabs.Screen name="Reports" component={ReportsScreen} />
+      )}
+      {isAdmin && (
+        <AppTabs.Screen name="Actions" component={UserActionsScreen} options={{ title: "Actions" }} />
+      )}
     </AppTabs.Navigator>
   );
 }
@@ -53,7 +76,7 @@ export function RootNavigator() {
   }
 
   return (
-    <AuthStack.Navigator>
+    <AuthStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Register" component={RegisterScreen} />
     </AuthStack.Navigator>

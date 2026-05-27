@@ -33,6 +33,18 @@ export function loginByMobileOtp(payload: {
   });
 }
 
+export function sendMobileOtp(payload: { mobileNumber: string }) {
+  return apiRequest<{
+    success: boolean;
+    message: string;
+    expiresInSeconds: number;
+    otpCode?: string;
+  }>("/auth/login/mobile-otp/send", {
+    method: "POST",
+    body: payload
+  });
+}
+
 export function registerUser(payload: {
   fullName: string;
   email?: string;
