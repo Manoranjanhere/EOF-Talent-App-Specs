@@ -6,10 +6,11 @@ import {
   DangerButton,
   ScreenLayout,
   SectionTitle,
-  StatPill,
-  colors
+  StatPill
 } from "../../components/ui";
+import { ThemeToggleButton } from "../../components/theme-toggle-button";
 import { useAuth } from "../../state/auth-context";
+import { useTheme } from "../../theme/theme-context";
 
 function roleLabel(groupId: number) {
   if (groupId === GroupId.Talent) return "Talent";
@@ -22,16 +23,21 @@ function roleLabel(groupId: number) {
 
 export function DashboardScreen() {
   const auth = useAuth();
+  const { colors } = useTheme();
   const roles = auth.user?.roles ?? [];
 
   return (
-    <ScreenLayout title={`Hi, ${auth.user?.fullName ?? "there"}`} subtitle="Your talent marketplace hub">
+    <ScreenLayout
+      title={`Hi, ${auth.user?.fullName ?? "there"}`}
+      subtitle="Your talent marketplace hub"
+      headerRight={<ThemeToggleButton />}
+    >
       <Card>
         <SectionTitle title="Account" />
         <Text style={{ color: colors.muted, fontSize: 14 }}>
           Signed in as <Text style={{ color: colors.text, fontWeight: "700" }}>{auth.user?.fullName}</Text>
         </Text>
-        <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
           {roles.map((r) => (
             <View
               key={r}
@@ -42,7 +48,7 @@ export function DashboardScreen() {
                 borderRadius: 8
               }}
             >
-              <Text style={{ color: "#c7d2fe", fontSize: 12, fontWeight: "600" }}>
+              <Text style={{ color: colors.accentText, fontSize: 12, fontWeight: "600" }}>
                 {roleLabel(r)}
               </Text>
             </View>

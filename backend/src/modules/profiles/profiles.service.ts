@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { TagLinkType } from "@prisma/client";
 import { PrismaService } from "../../database/prisma.service";
+import { StorageService } from "../storage/storage.service";
 import { UpdateTalentProfileDto } from "./dto/update-talent-profile.dto";
 import { UpdateOrgProfileDto } from "./dto/update-org-profile.dto";
 import { SetProfileTagsDto } from "./dto/set-profile-tags.dto";
@@ -18,7 +19,10 @@ type AuditData = {
 
 @Injectable()
 export class ProfilesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService
+  ) {}
 
   async updateTalentProfile(userId: string, dto: UpdateTalentProfileDto, audit: AuditData) {
     const updateResult = await this.prisma.userAccount.update({
@@ -27,6 +31,8 @@ export class ProfilesService {
         fullName: dto.fullName,
         age: dto.age,
         gender: dto.gender,
+        heightCm: dto.heightCm,
+        weightKg: dto.weightKg,
         city: dto.city,
         country: dto.country,
         instagramUrl: dto.instagramUrl,
@@ -34,10 +40,10 @@ export class ProfilesService {
         youtubeUrl: dto.youtubeUrl,
         tiktokUrl: dto.tiktokUrl,
         miniBio: dto.miniBio,
-        lookingForWork: dto.lookingForWork,
+        isAvailable: dto.isAvailable,
         lastUpdateIp: audit.ip,
         lastUpdateBy: audit.updatedBy,
-        profileTalent: {
+        profileMember: {
           upsert: {
             create: {
               lastUpdateIp: audit.ip,
@@ -68,12 +74,15 @@ export class ProfilesService {
       where: { id: userId },
       data: {
         defaultOrgTypeId: dto.orgTypeId,
+        websiteUrl: dto.websiteUrl,
+        instagramUrl: dto.instagramUrl,
+        facebookUrl: dto.facebookUrl,
         lastUpdateIp: audit.ip,
         lastUpdateBy: audit.updatedBy
       }
     });
 
-    return this.prisma.profileOrg.upsert({
+    const org = await this.prisma.profileOrg.upsert({
       where: { userId },
       create: {
         userId,
@@ -99,7 +108,17 @@ export class ProfilesService {
         contactEmail: dto.contactEmail,
         lastUpdateIp: audit.ip,
         lastUpdateBy: audit.updatedBy
-      }
+      },
+      include: { orgType: true }
+    });
+    await this.assertProfilePhotoExists(userId);
+    return org;
+  }
+
+  listOrgTypes() {
+    return this.prisma.orgTypeMaster.findMany({
+      where: { published: true, isActive: true },
+      orderBy: { id: "asc" }
     });
   }
 
@@ -117,6 +136,7 @@ export class ProfilesService {
       throw new BadRequestException("One or more tags are invalid");
     }
 
+    // Soft-deactivate current links (never hard-delete).
     await this.prisma.profileTagLink.updateMany({
       where: { userId, isActive: true },
       data: {
@@ -126,24 +146,43 @@ export class ProfilesService {
       }
     });
 
+    // Upsert so previously soft-deleted (user, tag, linkType) rows can be reactivated.
     const createRows = [
       ...dto.primaryTagIds.map((tagId) => ({
         userId,
         tagId,
-        linkType: TagLinkType.PRIMARY,
-        lastUpdateIp: audit.ip,
-        lastUpdateBy: audit.updatedBy
+        linkType: TagLinkType.PRIMARY
       })),
       ...dto.secondaryTagIds.map((tagId) => ({
         userId,
         tagId,
-        linkType: TagLinkType.SECONDARY,
-        lastUpdateIp: audit.ip,
-        lastUpdateBy: audit.updatedBy
+        linkType: TagLinkType.SECONDARY
       }))
     ];
-    if (createRows.length > 0) {
-      await this.prisma.profileTagLink.createMany({ data: createRows });
+
+    for (const row of createRows) {
+      await this.prisma.profileTagLink.upsert({
+        where: {
+          userId_tagId_linkType: {
+            userId: row.userId,
+            tagId: row.tagId,
+            linkType: row.linkType
+          }
+        },
+        create: {
+          userId: row.userId,
+          tagId: row.tagId,
+          linkType: row.linkType,
+          isActive: true,
+          lastUpdateIp: audit.ip,
+          lastUpdateBy: audit.updatedBy
+        },
+        update: {
+          isActive: true,
+          lastUpdateIp: audit.ip,
+          lastUpdateBy: audit.updatedBy
+        }
+      });
     }
 
     return this.prisma.profileTagLink.findMany({
@@ -184,7 +223,7 @@ export class ProfilesService {
       throw new BadRequestException("Rated user must be a talent member");
     }
 
-    await this.prisma.talentRating.upsert({
+    await this.prisma.userRating.upsert({
       where: {
         ratedForUserId_ratedByUserId: {
           ratedForUserId,
@@ -207,7 +246,7 @@ export class ProfilesService {
       }
     });
 
-    const aggregate = await this.prisma.talentRating.aggregate({
+    const aggregate = await this.prisma.userRating.aggregate({
       where: { ratedForUserId, isActive: true },
       _avg: { ratingValue: true },
       _count: { ratingValue: true }
@@ -229,18 +268,27 @@ export class ProfilesService {
     const profile = await this.prisma.userAccount.findUnique({
       where: { id: userId },
       include: {
-        profileTalent: true,
+        profileMember: true,
         profileOrg: { include: { orgType: true } },
         profileTags: {
           where: { isActive: true },
           include: { tag: true }
+        },
+        mediaAssets: {
+          where: { isProfilePhoto: true, isActive: true },
+          take: 1
         }
       }
     });
     if (!profile) {
       throw new NotFoundException("Profile not found");
     }
-    return profile;
+    const photo = profile.mediaAssets[0];
+    return {
+      ...profile,
+      profilePhotoUrl: photo ? await this.storage.getReadUrl(photo.objectKey) : null,
+      profilePhotoObjectKey: photo?.objectKey ?? null
+    };
   }
 
   private async assertProfilePhotoExists(userId: string) {

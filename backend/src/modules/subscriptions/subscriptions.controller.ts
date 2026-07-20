@@ -5,6 +5,7 @@ import { Audit } from "../../common/decorators/audit.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { RolesGuard } from "../../common/guards/roles.guard";
 import { SubscriptionsService } from "./subscriptions.service";
 import { CreatePlanDto } from "./dto/create-plan.dto";
 import { PurchaseSubscriptionDto } from "./dto/purchase-subscription.dto";
@@ -21,7 +22,7 @@ export class SubscriptionsController {
 
   @Post("plans")
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(GroupId.Admin, GroupId.TeamAdmin, GroupId.SuperAdmin)
   createPlan(
     @Body() dto: CreatePlanDto,

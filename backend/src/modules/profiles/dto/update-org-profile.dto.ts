@@ -1,12 +1,14 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 import { IsEmail, IsInt, IsOptional, IsString, Length } from "class-validator";
 
 export class UpdateOrgProfileDto {
   @ApiProperty()
+  @Type(() => Number)
   @IsInt()
   orgTypeId!: number;
 
-  @ApiProperty()
+  @ApiProperty({ description: "Organization / company name" })
   @IsString()
   @Length(2, 160)
   legalName!: string;
@@ -40,4 +42,19 @@ export class UpdateOrgProfileDto {
   @IsOptional()
   @IsEmail()
   contactEmail?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  websiteUrl?: string;
+
+  @ApiProperty({ required: false, description: "Optional Instagram profile URL" })
+  @IsOptional()
+  @IsString()
+  instagramUrl?: string;
+
+  @ApiProperty({ required: false, description: "Optional Facebook profile URL" })
+  @IsOptional()
+  @IsString()
+  facebookUrl?: string;
 }

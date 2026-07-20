@@ -6,13 +6,14 @@ import { Audit } from "../../common/decorators/audit.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { RolesGuard } from "../../common/guards/roles.guard";
 import { ModerationService } from "./moderation.service";
 import { FlagUserDto } from "./dto/flag-user.dto";
 import { AdminActionDto } from "./dto/admin-action.dto";
 
 @ApiTags("moderation")
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller("moderation")
 export class ModerationController {
   constructor(private readonly moderationService: ModerationService) {}

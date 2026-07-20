@@ -4,8 +4,8 @@ import { Audit } from "../../common/decorators/audit.decorator";
 import { AuthService } from "./auth.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
-import { MobileOtpLoginDto } from "./dto/mobile-otp-login.dto";
 import { SendMobileOtpDto } from "./dto/send-mobile-otp.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -28,16 +28,21 @@ export class AuthController {
     return this.authService.login(dto, audit);
   }
 
-  @Post("login/mobile-otp")
-  loginWithMobileOtp(
-    @Body() dto: MobileOtpLoginDto,
-    @Audit() audit: { ip: string; updatedBy: string }
-  ) {
-    return this.authService.loginWithMobileOtp(dto, audit);
+  @Post("register/mobile-otp/send")
+  sendRegistrationOtp(@Body() dto: SendMobileOtpDto) {
+    return this.authService.sendRegistrationOtp(dto);
   }
 
-  @Post("login/mobile-otp/send")
-  sendMobileOtp(@Body() dto: SendMobileOtpDto) {
-    return this.authService.sendMobileOtp(dto);
+  @Post("password/reset/otp/send")
+  sendPasswordResetOtp(@Body() dto: SendMobileOtpDto) {
+    return this.authService.sendPasswordResetOtp(dto);
+  }
+
+  @Post("password/reset")
+  resetPassword(
+    @Body() dto: ResetPasswordDto,
+    @Audit() audit: { ip: string; updatedBy: string }
+  ) {
+    return this.authService.resetPassword(dto, audit);
   }
 }

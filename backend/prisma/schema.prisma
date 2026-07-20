@@ -83,7 +83,7 @@ model UserAccount {
   websiteUrl             String?                   @map("website_url")
   facebookUrl            String?                   @map("facebook_url")
   miniBio                String?                   @db.VarChar(600) @map("mini_bio")
-  lookingForWork         Boolean                   @default(true) @map("looking_for_work")
+  isAvailable            Boolean                   @default(true) @map("is_available")
   ratingAverage          Decimal                   @default(0) @db.Decimal(3, 2) @map("rating_average")
   ratingCount            Int                       @default(0) @map("rating_count")
   loginEnabled           Boolean                   @default(true) @map("login_enabled")
@@ -102,7 +102,7 @@ model UserAccount {
   defaultOrgType         OrgTypeMaster?            @relation(fields: [defaultOrgTypeId], references: [id])
   roles                  UserRoleLink[]
   statusHistory          UserStatusHistory[]
-  profileTalent          ProfileTalent?
+  profileMember          ProfileMember?
   profileOrg             ProfileOrg?
   profileTags            ProfileTagLink[]
   albums                 MediaAlbum[]
@@ -122,8 +122,8 @@ model UserAccount {
   adminActionsTaken      AdminActionLog[]          @relation("admin_action_taken_by")
   adminActionsReceived   AdminActionLog[]          @relation("admin_action_on_user")
   feedbackItems          HelpFeedback[]
-  jobRatingsGiven        TalentRating[]            @relation("rating_by_user")
-  jobRatingsReceived     TalentRating[]            @relation("rating_for_user")
+  ratingsGiven           UserRating[]              @relation("rating_by_user")
+  ratingsReceived        UserRating[]              @relation("rating_for_user")
 
   @@index([isActive])
   @@map("user_account")
@@ -177,7 +177,7 @@ model OrgTypeMaster {
   @@map("org_type_master")
 }
 
-model ProfileTalent {
+model ProfileMember {
   id             String      @id @default(uuid())
   userId         String      @unique @map("user_id")
   introHeadline  String?     @map("intro_headline")
@@ -189,7 +189,7 @@ model ProfileTalent {
   lastUpdateBy   String      @default("system") @map("last_update_by")
   user           UserAccount @relation(fields: [userId], references: [id])
 
-  @@map("profile_talent")
+  @@map("profile_member")
 }
 
 model ProfileOrg {
@@ -227,6 +227,8 @@ model TagMaster {
   lastUpdateIp   String         @default("0.0.0.0") @map("last_update_ip")
   lastUpdateBy   String         @default("system") @map("last_update_by")
 
+  @@index([published, isActive])
+  @@index([isActive])
   @@map("tag_master")
 }
 
@@ -245,6 +247,7 @@ model ProfileTagLink {
 
   @@unique([userId, tagId, linkType])
   @@index([userId, linkType, isActive])
+  @@index([tagId, isActive])
   @@map("profile_tag_link")
 }
 
@@ -268,22 +271,23 @@ model MediaAlbum {
 }
 
 model MediaAsset {
-  id               String         @id @default(uuid())
-  ownerUserId      String         @map("owner_user_id")
-  albumId          String?        @map("album_id")
-  assetType        MediaAssetType @map("asset_type")
-  objectKey        String         @map("object_key")
-  mimeType         String?        @map("mime_type")
-  sizeBytes        Int?           @map("size_bytes")
-  durationSeconds  Int?           @map("duration_seconds")
-  isProfilePhoto   Boolean        @default(false) @map("is_profile_photo")
-  isActive         Boolean        @default(true) @map("is_active")
-  createdAt        DateTime       @default(now()) @map("created_at")
-  lastUpdateAt     DateTime       @updatedAt @map("last_update_at")
-  lastUpdateIp     String         @default("0.0.0.0") @map("last_update_ip")
-  lastUpdateBy     String         @default("system") @map("last_update_by")
-  owner            UserAccount    @relation(fields: [ownerUserId], references: [id])
-  album            MediaAlbum?    @relation(fields: [albumId], references: [id])
+  id                  String         @id @default(uuid())
+  ownerUserId         String         @map("owner_user_id")
+  albumId             String?        @map("album_id")
+  assetType           MediaAssetType @map("asset_type")
+  objectKey           String         @map("object_key")
+  thumbnailObjectKey  String?        @map("thumbnail_object_key")
+  mimeType            String?        @map("mime_type")
+  sizeBytes           Int?           @map("size_bytes")
+  durationSeconds     Int?           @map("duration_seconds")
+  isProfilePhoto      Boolean        @default(false) @map("is_profile_photo")
+  isActive            Boolean        @default(true) @map("is_active")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  lastUpdateAt        DateTime       @updatedAt @map("last_update_at")
+  lastUpdateIp        String         @default("0.0.0.0") @map("last_update_ip")
+  lastUpdateBy        String         @default("system") @map("last_update_by")
+  owner               UserAccount    @relation(fields: [ownerUserId], references: [id])
+  album               MediaAlbum?    @relation(fields: [albumId], references: [id])
 
   @@index([ownerUserId, assetType, isActive])
   @@map("media_asset")
@@ -390,7 +394,8 @@ model JobTagLink {
   tag            TagMaster   @relation(fields: [tagId], references: [id])
 
   @@unique([jobId, tagId, linkType])
-  @@index([jobId, linkType])
+  @@index([jobId, linkType, isActive])
+  @@index([tagId, isActive])
   @@map("job_tag_link")
 }
 
@@ -412,7 +417,7 @@ model JobApplication {
   @@map("job_application")
 }
 
-model TalentRating {
+model UserRating {
   id             String      @id @default(uuid())
   ratedForUserId String      @map("rated_for_user_id")
   ratedByUserId  String      @map("rated_by_user_id")
@@ -426,9 +431,9 @@ model TalentRating {
   ratedFor       UserAccount @relation("rating_for_user", fields: [ratedForUserId], references: [id])
   ratedBy        UserAccount @relation("rating_by_user", fields: [ratedByUserId], references: [id])
 
-  @@index([ratedForUserId])
+  @@index([ratedForUserId, isActive])
   @@unique([ratedForUserId, ratedByUserId])
-  @@map("talent_rating")
+  @@map("user_rating")
 }
 
 model ChatThread {

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,22 +12,17 @@ import {
   View,
   ViewStyle
 } from "react-native";
+import { AppColors, lightColors } from "../theme/colors";
+import { useTheme } from "../theme/theme-context";
+import { AppLogoIcon, EyeIcon, EyeOffIcon } from "./icons";
 
-export const colors = {
-  bg: "#0f172a",
-  card: "#1e293b",
-  cardElevated: "#273449",
-  border: "#334155",
-  text: "#f8fafc",
-  muted: "#94a3b8",
-  primary: "#6366f1",
-  primaryPressed: "#4f46e5",
-  primarySoft: "#312e81",
-  danger: "#f87171",
-  dangerSoft: "#450a0a",
-  success: "#34d399",
-  warning: "#fbbf24"
-};
+/** @deprecated Prefer useTheme().colors — kept for gradual migration */
+export const colors = lightColors;
+
+function useStyles() {
+  const { colors: c } = useTheme();
+  return useMemo(() => createStyles(c), [c]);
+}
 
 export function ScreenLayout({
   title,
@@ -42,6 +37,8 @@ export function ScreenLayout({
   footer?: React.ReactNode;
   headerRight?: React.ReactNode;
 }) {
+  const styles = useStyles();
+
   return (
     <KeyboardAvoidingView
       style={styles.screen}
@@ -54,7 +51,10 @@ export function ScreenLayout({
       >
         <View style={styles.headerRow}>
           <View style={styles.headerText}>
-            <Text style={styles.brand}>EOF Talent</Text>
+            <View style={styles.brandRow}>
+              <AppLogoIcon size={28} />
+              <Text style={styles.brand}>EOF Talent</Text>
+            </View>
             <Text style={styles.title}>{title}</Text>
             {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
           </View>
@@ -74,22 +74,53 @@ export function Card({
   children: React.ReactNode;
   style?: ViewStyle;
 }) {
+  const styles = useStyles();
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
 export function SectionTitle({ title }: { title: string }) {
+  const styles = useStyles();
   return <Text style={styles.sectionTitle}>{title}</Text>;
 }
 
 export function LabeledInput({
   label,
   hint,
+  secureTextEntry,
+  style,
   ...props
 }: TextInputProps & { label: string; hint?: string }) {
+  const { colors: c } = useTheme();
+  const styles = useStyles();
+  const [visible, setVisible] = useState(false);
+  const isPassword = secureTextEntry === true;
+
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput placeholderTextColor={colors.muted} style={styles.input} {...props} />
+      <View style={styles.inputWrap}>
+        <TextInput
+          placeholderTextColor={c.muted}
+          {...props}
+          style={[styles.input, isPassword && styles.inputWithToggle, style]}
+          secureTextEntry={isPassword ? !visible : secureTextEntry}
+        />
+        {isPassword ? (
+          <Pressable
+            onPress={() => setVisible((v) => !v)}
+            style={styles.eyeBtn}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={visible ? "Hide password" : "Show password"}
+          >
+            {visible ? (
+              <EyeOffIcon color={c.muted} size={20} />
+            ) : (
+              <EyeIcon color={c.muted} size={20} />
+            )}
+          </Pressable>
+        ) : null}
+      </View>
       {hint ? <Text style={styles.hint}>{hint}</Text> : null}
     </View>
   );
@@ -106,6 +137,9 @@ export function PrimaryButton({
   disabled?: boolean;
   loading?: boolean;
 }) {
+  const { colors: c } = useTheme();
+  const styles = useStyles();
+
   return (
     <Pressable
       onPress={onPress}
@@ -117,7 +151,7 @@ export function PrimaryButton({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color="#fff" />
+        <ActivityIndicator color={c.primaryOn} />
       ) : (
         <Text style={styles.primaryBtnText}>{title}</Text>
       )}
@@ -134,6 +168,8 @@ export function SecondaryButton({
   onPress: () => void;
   disabled?: boolean;
 }) {
+  const styles = useStyles();
+
   return (
     <Pressable
       onPress={onPress}
@@ -156,6 +192,8 @@ export function DangerButton({
   title: string;
   onPress: () => void;
 }) {
+  const styles = useStyles();
+
   return (
     <Pressable onPress={onPress} style={styles.dangerBtn}>
       <Text style={styles.dangerBtnText}>{title}</Text>
@@ -164,12 +202,16 @@ export function DangerButton({
 }
 
 export function LinkButton({ title, onPress }: { title: string; onPress: () => void }) {
+  const styles = useStyles();
+
   return (
     <Pressable onPress={onPress} style={styles.linkBtn}>
       <Text style={styles.linkBtnText}>{title}</Text>
     </Pressable>
   );
 }
+
+export { ThemeToggleButton } from "./theme-toggle-button";
 
 export function SegmentedControl<T extends string>({
   options,
@@ -180,6 +222,8 @@ export function SegmentedControl<T extends string>({
   value: T;
   onChange: (value: T) => void;
 }) {
+  const styles = useStyles();
+
   return (
     <View style={styles.segmentRow}>
       {options.map((option) => {
@@ -207,6 +251,7 @@ export function RoleSelector({
   value: number;
   onChange: (groupId: number) => void;
 }) {
+  const styles = useStyles();
   const roles = [
     { id: 1, title: "Talent", description: "Model, actor, artist, crew member" },
     { id: 2, title: "Employer / Agency", description: "Hire talent or post jobs" }
@@ -247,6 +292,7 @@ export function ListCard({
   badge?: string;
   onPress?: () => void;
 }) {
+  const styles = useStyles();
   const content = (
     <>
       <View style={styles.listCardTop}>
@@ -278,6 +324,8 @@ export function ListCard({
 }
 
 export function EmptyState({ message }: { message: string }) {
+  const styles = useStyles();
+
   return (
     <View style={styles.empty}>
       <Text style={styles.emptyText}>{message}</Text>
@@ -286,6 +334,8 @@ export function EmptyState({ message }: { message: string }) {
 }
 
 export function StatPill({ label, value }: { label: string; value: string }) {
+  const styles = useStyles();
+
   return (
     <View style={styles.statPill}>
       <Text style={styles.statValue}>{value}</Text>
@@ -294,143 +344,179 @@ export function StatPill({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  scroll: { flexGrow: 1, padding: 20, paddingBottom: 40 },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
-  headerText: { flex: 1 },
-  brand: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    marginBottom: 6
-  },
-  title: { color: colors.text, fontSize: 26, fontWeight: "800" },
-  subtitle: { color: colors.muted, fontSize: 14, marginTop: 6, lineHeight: 20 },
-  footer: { marginTop: 16, alignItems: "center" },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 14,
-    gap: 12
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 4
-  },
-  field: { gap: 6 },
-  label: { color: colors.muted, fontSize: 13, fontWeight: "600" },
-  hint: { color: colors.muted, fontSize: 12 },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: "#0b1220",
-    color: colors.text,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16
-  },
-  primaryBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: "center"
-  },
-  primaryBtnPressed: { backgroundColor: colors.primaryPressed },
-  secondaryBtn: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center",
-    backgroundColor: "#0b1220"
-  },
-  secondaryBtnPressed: { backgroundColor: colors.cardElevated },
-  dangerBtn: {
-    backgroundColor: colors.dangerSoft,
-    borderWidth: 1,
-    borderColor: colors.danger,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center"
-  },
-  dangerBtnText: { color: colors.danger, fontWeight: "700" },
-  btnDisabled: { opacity: 0.55 },
-  primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  secondaryBtnText: { color: colors.text, fontSize: 15, fontWeight: "600" },
-  linkBtn: { paddingVertical: 10 },
-  linkBtnText: { color: colors.primary, fontSize: 15, fontWeight: "600" },
-  segmentRow: { flexDirection: "row", gap: 8 },
-  segment: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: "center",
-    backgroundColor: "#0b1220"
-  },
-  segmentActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  segmentText: { color: colors.muted, fontWeight: "600", fontSize: 13 },
-  segmentTextActive: { color: colors.text },
-  roleCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: 14,
-    backgroundColor: "#0b1220"
-  },
-  roleCardActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  roleTitle: { color: colors.text, fontSize: 16, fontWeight: "700" },
-  roleTitleActive: { color: "#e0e7ff" },
-  roleDesc: { color: colors.muted, fontSize: 13, marginTop: 4 },
-  listCard: {
-    backgroundColor: colors.cardElevated,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 10
-  },
-  listCardPressed: { opacity: 0.9 },
-  listCardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  listCardTitle: { color: colors.text, fontSize: 17, fontWeight: "700", flex: 1 },
-  listCardSubtitle: { color: colors.muted, fontSize: 14, marginTop: 4 },
-  listCardMeta: { color: colors.muted, fontSize: 12, marginTop: 4 },
-  badge: {
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginLeft: 8
-  },
-  badgeText: { color: "#c7d2fe", fontSize: 11, fontWeight: "700" },
-  empty: {
-    padding: 24,
-    alignItems: "center",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: "dashed"
-  },
-  emptyText: { color: colors.muted, textAlign: "center" },
-  statPill: {
-    flex: 1,
-    backgroundColor: "#0b1220",
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center"
-  },
-  statValue: { color: colors.text, fontSize: 18, fontWeight: "800" },
-  statLabel: { color: colors.muted, fontSize: 11, marginTop: 4 }
-});
+function createStyles(c: AppColors) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: c.bg },
+    scroll: { flexGrow: 1, padding: 20, paddingBottom: 40, gap: 14 },
+    headerRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
+    headerText: { flex: 1, paddingRight: 12 },
+    brandRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
+    brand: {
+      color: c.primary,
+      fontSize: 12,
+      fontWeight: "700",
+      letterSpacing: 1.2,
+      textTransform: "uppercase"
+    },
+    title: { color: c.text, fontSize: 26, fontWeight: "800" },
+    subtitle: { color: c.muted, fontSize: 14, marginTop: 6, lineHeight: 20 },
+    footer: {
+      marginTop: 20,
+      width: "100%",
+      alignSelf: "stretch",
+      gap: 10
+    },
+    card: {
+      backgroundColor: c.card,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: c.border,
+      marginBottom: 14,
+      gap: 12,
+      elevation: 2,
+      shadowColor: "#0F172A",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 8
+    },
+    sectionTitle: {
+      color: c.text,
+      fontSize: 16,
+      fontWeight: "700",
+      marginBottom: 4
+    },
+    field: { gap: 6 },
+    label: { color: c.muted, fontSize: 13, fontWeight: "600" },
+    hint: { color: c.muted, fontSize: 12 },
+    inputWrap: { position: "relative", justifyContent: "center" },
+    input: {
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.inputBg,
+      color: c.text,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 16
+    },
+    inputWithToggle: { paddingRight: 48 },
+    eyeBtn: {
+      position: "absolute",
+      right: 12,
+      height: "100%",
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 4
+    },
+    primaryBtn: {
+      backgroundColor: c.primary,
+      borderRadius: 10,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      alignSelf: "stretch",
+      minHeight: 48,
+      marginTop: 4
+    },
+    primaryBtnPressed: { backgroundColor: c.primaryPressed },
+    secondaryBtn: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      alignSelf: "stretch",
+      minHeight: 48,
+      backgroundColor: c.inset
+    },
+    secondaryBtnPressed: { backgroundColor: c.cardElevated },
+    dangerBtn: {
+      backgroundColor: c.dangerSoft,
+      borderWidth: 1,
+      borderColor: c.danger,
+      borderRadius: 10,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      alignSelf: "stretch",
+      minHeight: 48
+    },
+    dangerBtnText: { color: c.danger, fontWeight: "700" },
+    btnDisabled: { opacity: 0.55 },
+    primaryBtnText: { color: c.primaryOn, fontSize: 16, fontWeight: "700" },
+    secondaryBtnText: { color: c.text, fontSize: 15, fontWeight: "600" },
+    linkBtn: { paddingVertical: 10 },
+    linkBtnText: { color: c.primary, fontSize: 15, fontWeight: "600" },
+    segmentRow: { flexDirection: "row", gap: 8 },
+    segment: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      paddingVertical: 10,
+      alignItems: "center",
+      backgroundColor: c.inset
+    },
+    segmentActive: { borderColor: c.primary, backgroundColor: c.primarySoft },
+    segmentText: { color: c.muted, fontWeight: "600", fontSize: 13 },
+    segmentTextActive: { color: c.primary },
+    roleCard: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      padding: 14,
+      backgroundColor: c.inset
+    },
+    roleCardActive: { borderColor: c.primary, backgroundColor: c.primarySoft },
+    roleTitle: { color: c.text, fontSize: 16, fontWeight: "700" },
+    roleTitleActive: { color: c.accentText },
+    roleDesc: { color: c.muted, fontSize: 13, marginTop: 4 },
+    listCard: {
+      backgroundColor: c.cardElevated,
+      borderRadius: 14,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      marginBottom: 10
+    },
+    listCardPressed: { opacity: 0.9 },
+    listCardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+    listCardTitle: { color: c.text, fontSize: 17, fontWeight: "700", flex: 1 },
+    listCardSubtitle: { color: c.muted, fontSize: 14, marginTop: 4 },
+    listCardMeta: { color: c.muted, fontSize: 12, marginTop: 4 },
+    badge: {
+      backgroundColor: c.primarySoft,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+      marginLeft: 8
+    },
+    badgeText: { color: c.accentText, fontSize: 11, fontWeight: "700" },
+    empty: {
+      padding: 24,
+      alignItems: "center",
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderStyle: "dashed",
+      backgroundColor: c.inset
+    },
+    emptyText: { color: c.muted, textAlign: "center" },
+    statPill: {
+      flex: 1,
+      backgroundColor: c.card,
+      borderRadius: 12,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignItems: "center"
+    },
+    statValue: { color: c.text, fontSize: 18, fontWeight: "800" },
+    statLabel: { color: c.muted, fontSize: 11, marginTop: 4 }
+  });
+}

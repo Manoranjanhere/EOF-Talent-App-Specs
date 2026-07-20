@@ -14,3 +14,8 @@ backend/prisma/dev.db
 backend/tsconfig.build.tsbuildinfo
 backend/dist
 mobile-app/android/local.properties
+mobile-app/google-services.json
+mobile-app/android/app/google-services.json
+backend/firebase-service-account.json
+backend/*-firebase-adminsdk*.json
+backend/uploads

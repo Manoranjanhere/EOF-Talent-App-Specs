@@ -17,6 +17,7 @@ export class SearchService {
       city: query.city,
       country: query.country,
       gender: query.gender,
+      isAvailable: query.isAvailable,
       roles: query.groupId
         ? {
             some: {
@@ -61,6 +62,7 @@ export class SearchService {
         title: item.fullName,
         subtitle: `${item.city ?? ""} ${item.country ?? ""}`.trim(),
         rating: item.ratingAverage,
+        isAvailable: item.isAvailable,
         tags: item.profileTags.map((link) => link.tag.title),
         roleIds: item.roles.map((r) => r.groupId)
       }))

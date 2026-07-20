@@ -10,17 +10,26 @@ import {
   SectionTitle
 } from "../../components/ui";
 import { searchJobs } from "../../services/search.service";
+import { useAuth } from "../../state/auth-context";
 
 export function JobSearchScreen() {
+  const { accessToken } = useAuth();
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
   const [cards, setCards] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   const onSearch = async () => {
+    if (!accessToken) {
+      Alert.alert("Sign in required", "Please sign in to search jobs.");
+      return;
+    }
     try {
       setLoading(true);
-      const result = await searchJobs({ city, country });
+      const result = await searchJobs(accessToken, {
+        city: city || undefined,
+        country: country || undefined
+      });
       setCards((result as any).cards ?? []);
     } catch (error) {
       Alert.alert("Search error", (error as Error).message);

@@ -22,6 +22,10 @@ export class ModerationService {
         details: dto.details,
         lastUpdateIp: audit.ip,
         lastUpdateBy: audit.updatedBy
+      },
+      include: {
+        reportedUser: true,
+        raisedBy: true
       }
     });
   }
@@ -66,16 +70,31 @@ export class ModerationService {
       }
     });
 
-    if (dto.actionType === "DEACTIVATE" || dto.actionType === "BAN") {
-      await this.prisma.userAccount.update({
-        where: { id: report.reportedUserId },
-        data: {
-          isActive: false,
-          loginEnabled: false,
-          lastUpdateIp: audit.ip,
-          lastUpdateBy: audit.updatedBy
-        }
+    if (dto.actionType === "DEACTIVATE" || dto.actionType === "BAN" || dto.actionType === "SUSPEND") {
+      const existing = await this.prisma.userAccount.findUnique({
+        where: { id: report.reportedUserId }
       });
+      if (existing) {
+        await this.prisma.userAccount.update({
+          where: { id: report.reportedUserId },
+          data: {
+            isActive: false,
+            loginEnabled: false,
+            lastUpdateIp: audit.ip,
+            lastUpdateBy: audit.updatedBy
+          }
+        });
+        await this.prisma.userStatusHistory.create({
+          data: {
+            userId: report.reportedUserId,
+            oldIsActive: existing.isActive,
+            newIsActive: false,
+            reason: `moderation_${dto.actionType.toLowerCase()}`,
+            lastUpdateIp: audit.ip,
+            lastUpdateBy: audit.updatedBy
+          }
+        });
+      }
     }
 
     await this.prisma.cloneAuditAdmin.create({
@@ -83,7 +102,12 @@ export class ModerationService {
         sourceTable: "admin_action_log",
         sourceId: action.id,
         actionType: dto.actionType,
-        payloadJson: action,
+        payloadJson: {
+          ...action,
+          reportId: report.id,
+          reportedUserId: report.reportedUserId,
+          notes: dto.notes
+        },
         lastUpdateIp: audit.ip,
         lastUpdateBy: audit.updatedBy
       }

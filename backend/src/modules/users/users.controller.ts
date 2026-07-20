@@ -1,15 +1,16 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { GroupId } from "@eof/shared";
 import { Audit } from "../../common/decorators/audit.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { RolesGuard } from "../../common/guards/roles.guard";
 import { UsersService } from "./users.service";
 
 @ApiTags("users")
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller("users")
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -19,13 +20,31 @@ export class UsersController {
     return this.usersService.getMe(user.userId);
   }
 
+  @Get()
+  @Roles(GroupId.Admin, GroupId.TeamAdmin, GroupId.SuperAdmin)
+  listUsers(
+    @Query("q") q?: string,
+    @Query("status") status?: "all" | "active" | "banned",
+    @Query("loginEnabled") loginEnabled?: "all" | "yes" | "no",
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string
+  ) {
+    return this.usersService.listUsers({
+      q,
+      status: status ?? "all",
+      loginEnabled: loginEnabled ?? "all",
+      page: page ? Number(page) : 1,
+      pageSize: pageSize ? Number(pageSize) : 50
+    });
+  }
+
   @Patch(":id/activate")
   @Roles(GroupId.Admin, GroupId.TeamAdmin, GroupId.SuperAdmin)
   activate(
     @Param("id") id: string,
     @Audit() audit: { ip: string; updatedBy: string }
   ) {
-    return this.usersService.setUserActive(id, true, audit);
+    return this.usersService.unbanUser(id, audit, "admin_activate");
   }
 
   @Patch(":id/deactivate")
@@ -34,7 +53,27 @@ export class UsersController {
     @Param("id") id: string,
     @Audit() audit: { ip: string; updatedBy: string }
   ) {
-    return this.usersService.setUserActive(id, false, audit);
+    return this.usersService.banUser(id, audit, "admin_deactivate");
+  }
+
+  @Patch(":id/ban")
+  @Roles(GroupId.Admin, GroupId.TeamAdmin, GroupId.SuperAdmin)
+  ban(
+    @Param("id") id: string,
+    @Body() body: { notes?: string },
+    @Audit() audit: { ip: string; updatedBy: string }
+  ) {
+    return this.usersService.banUser(id, audit, body?.notes);
+  }
+
+  @Patch(":id/unban")
+  @Roles(GroupId.Admin, GroupId.TeamAdmin, GroupId.SuperAdmin)
+  unban(
+    @Param("id") id: string,
+    @Body() body: { notes?: string },
+    @Audit() audit: { ip: string; updatedBy: string }
+  ) {
+    return this.usersService.unbanUser(id, audit, body?.notes);
   }
 
   @Patch(":id/login-enabled")

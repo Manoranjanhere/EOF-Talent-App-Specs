@@ -43,24 +43,24 @@ async function main() {
     });
   }
 
-  const tags = [
-    "model",
-    "actor",
-    "singer",
-    "makeup-artist",
-    "camera-professional",
-    "musician",
-    "song-writer",
-    "script-writer",
-    "music-composer"
+  const tags: Array<{ slug: string; title: string }> = [
+    { slug: "model", title: "Model" },
+    { slug: "actor", title: "Actor" },
+    { slug: "singer", title: "Singer" },
+    { slug: "makeup-artist", title: "Makeup Artist" },
+    { slug: "camera-professional", title: "Camera Professional" },
+    { slug: "musician", title: "Musician" },
+    { slug: "song-writer", title: "Song Writer" },
+    { slug: "script-writer", title: "Script Writer" },
+    { slug: "music-composer", title: "Music Composer" }
   ];
-  for (const slug of tags) {
+  for (const tag of tags) {
     await prisma.tagMaster.upsert({
-      where: { slug },
-      update: {},
+      where: { slug: tag.slug },
+      update: { title: tag.title, published: true, isActive: true },
       create: {
-        slug,
-        title: slug.replace(/-/g, " ")
+        slug: tag.slug,
+        title: tag.title
       }
     });
   }

@@ -18,17 +18,25 @@ import { SetProfileTagsDto } from "./dto/set-profile-tags.dto";
 import { RateTalentDto } from "./dto/rate-talent.dto";
 
 @ApiTags("profiles")
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller("profiles")
 export class ProfilesController {
   constructor(private readonly profilesService: ProfilesService) {}
 
+  /** Must be registered before :userId so "org-types" is not captured as an id. */
+  @Get("org-types")
+  listOrgTypes() {
+    return this.profilesService.listOrgTypes();
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Get(":userId")
   getProfile(@Param("userId") userId: string) {
     return this.profilesService.getUserProfile(userId);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Patch("talent/me")
   updateTalentProfile(
     @CurrentUser() user: { userId: string },
@@ -38,6 +46,8 @@ export class ProfilesController {
     return this.profilesService.updateTalentProfile(user.userId, dto, audit);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Patch("org/me")
   updateOrgProfile(
     @CurrentUser() user: { userId: string },
@@ -47,6 +57,8 @@ export class ProfilesController {
     return this.profilesService.updateOrgProfile(user.userId, dto, audit);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Post("tags/me")
   setProfileTags(
     @CurrentUser() user: { userId: string },
@@ -56,6 +68,8 @@ export class ProfilesController {
     return this.profilesService.setProfileTags(user.userId, dto, audit);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Post(":userId/rate")
   rateTalent(
     @CurrentUser() user: { userId: string },

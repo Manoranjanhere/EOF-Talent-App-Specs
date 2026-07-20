@@ -56,8 +56,7 @@ Role constants live in `packages/shared/src/index.ts`.
 - Frontend: React Native Expo app (`mobile-app`).
 - Backend: NestJS REST API + Socket.IO gateway (`backend`).
 - Persistence: PostgreSQL via Prisma.
-- Realtime/session/cache target: Redis.
-- Media target: S3-compatible object storage (MinIO locally).
+- Media target: S3-compatible object storage (optional locally).
 - API docs: Swagger at `/docs` on backend server.
 
 ## Backend API Surface
@@ -128,7 +127,10 @@ Prisma schema is at `backend/prisma/schema.prisma`.
 Highlights:
 
 - Use-case-neutral naming with master/child patterns.
-- Tags are modeled as `tag_master` with link tables.
+- Tags are modeled as `tag_master` with link tables (`profile_tag_link`, `job_tag_link`) and FK indexes.
+- Member-facing profile extension is `profile_member` (not skill/talent-specific).
+- Availability flag is `is_available` on `user_account`.
+- Ratings use `user_rating`.
 - Every business table includes audit fields:
   - `last_update_at`
   - `last_update_ip`
@@ -159,7 +161,9 @@ Navigation is role-sensitive in `mobile-app/src/navigation/root-navigator.tsx`.
 
 - Node.js `>=20.11.0`
 - npm
-- Docker (recommended for local Postgres/Redis/MinIO)
+- PostgreSQL installed and running locally (required)
+
+This project does **not** use Docker. Media files are stored on local disk by default (`STORAGE_DRIVER=local`).
 
 ## Environment Configuration
 
@@ -181,11 +185,8 @@ Important backend variables:
 - `DATABASE_URL`
 - `JWT_ACCESS_SECRET`
 - `JWT_REFRESH_SECRET`
-- `REDIS_URL`
-- `S3_ENDPOINT`
-- `S3_ACCESS_KEY`
-- `S3_SECRET_KEY`
-- `S3_BUCKET`
+- `STORAGE_DRIVER` (`local` by default)
+- `UPLOAD_DIR` (default `./uploads`)
 - `OTP_TEST_BYPASS` (set `true` locally; dev OTP is always `123456` and is logged in the backend terminal)
 
 ### Mobile OTP (local dev)
@@ -204,21 +205,50 @@ Important mobile variable:
 
 1. Install dependencies:
    - `npm install`
-2. Start infrastructure (recommended):
-   - `docker compose up -d postgres redis minio`
+2. Make sure PostgreSQL is running and create DB `eof_talent`.
 3. Prepare environment files:
-   - copy `.env.example` values as needed
-   - copy `backend/.env.example` to `backend/.env` (if using file-based env loading in your setup)
+   - copy `backend/.env.example` to `backend/.env`
+   - set `DATABASE_URL` to your local Postgres user/password
    - copy `mobile-app/.env.example` to `mobile-app/.env`
 4. Generate Prisma client:
    - `npm run prisma:generate`
 5. Apply migrations and seed:
-   - `npm run prisma:migrate`
+   - `npm run prisma:migrate`          # apply existing migrations (deploy)
+   - `npm run prisma:migrate:dev -- --name your_change`  # only when you change schema.prisma
    - `npm run prisma:seed`
 6. Start backend:
    - `npm run start:backend`
 7. Start mobile app:
    - `npm run start:mobile`
+
+### Media (local vs S3)
+
+Default is **local disk** (no S3):
+- `STORAGE_DRIVER=local`
+- Files go to `backend/uploads` (gitignored)
+- Served at `http://localhost:3000/api/media/files/...`
+
+Optional cloud S3 later — set in `backend/.env`:
+```
+STORAGE_DRIVER=s3
+S3_REGION=ap-south-1
+S3_BUCKET=your-bucket-name
+S3_ACCESS_KEY=...
+S3_SECRET_KEY=...
+S3_ENDPOINT=https://s3.ap-south-1.amazonaws.com
+S3_FORCE_PATH_STYLE=false
+```
+
+### Role-based app features
+
+| Feature | Talent | Employer/Agency |
+|---|---|---|
+| Discover talent | No | Yes |
+| Search jobs | Yes | No |
+| Post job | No | Yes |
+| Albums / portfolio upload | Yes | No |
+| Company profile | No | Yes |
+| Chat / Help | Yes | Yes |
 
 ## Scripts
 
@@ -230,7 +260,8 @@ From repository root:
 - `npm run start:backend`: start NestJS in watch mode
 - `npm run start:mobile`: start Expo
 - `npm run prisma:generate`: generate Prisma client
-- `npm run prisma:migrate`: run Prisma dev migration
+- `npm run prisma:migrate`: apply pending migrations (`prisma migrate deploy`)
+- `npm run prisma:migrate:dev`: create/apply a new migration while developing
 - `npm run prisma:seed`: seed baseline data
 
 Backend-only (workspace `backend`):
@@ -275,8 +306,7 @@ Recommended verification flow before release:
 
 - Detailed runbook: `docs/deployment-guide.md`
 - Release readiness checklist: `docs/release-checklist.md`
-- Container build file: `backend/Dockerfile`
-- Local container stack: `docker-compose.yml`
+- Local media folder: `backend/uploads` (`STORAGE_DRIVER=local`)
 
 ## Security and Reliability Defaults
 
@@ -295,5 +325,5 @@ Likely phase-2 items:
 - Production OTP provider integration.
 - Payment gateway integration for subscriptions/job posting billing.
 - Push notifications.
-- Multi-instance Socket.IO Redis adapter for realtime fan-out.
+- Multi-instance Socket.IO (phase 2).
 - Expanded mobile UI polish and test depth.

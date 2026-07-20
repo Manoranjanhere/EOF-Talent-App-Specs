@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <rect width="1024" height="1024" fill="#1D4ED8"/>
+  <!-- Scaled from in-app AppLogoIcon 64→1024 (×16) -->
+  <path
+    d="M288 256h448v88H392v104h296v88H392v112h352v88H288V256z"
+    fill="#FFFFFF"
+  />
+</svg>

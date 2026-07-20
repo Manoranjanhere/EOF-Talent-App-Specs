@@ -12,13 +12,22 @@
     "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces",
     "test": "npm run test --workspaces",
+    "start": "npm run start --workspace mobile-app",
     "start:backend": "npm run start:dev --workspace backend",
     "start:mobile": "npm run start --workspace mobile-app",
+    "android": "npm run android --workspace mobile-app",
     "prisma:generate": "npm run prisma:generate --workspace backend",
     "prisma:migrate": "npm run prisma:migrate --workspace backend",
-    "prisma:seed": "npm run prisma:seed --workspace backend"
+    "prisma:migrate:dev": "npm run prisma:migrate:dev --workspace backend",
+    "prisma:seed": "npm run prisma:seed --workspace backend",
+    "ios": "expo run:ios"
   },
   "engines": {
     "node": ">=20.11.0"
+  },
+  "dependencies": {
+    "expo": "~51.0.28",
+    "react": "18.2.0",
+    "react-native": "0.74.5"
   }
 }

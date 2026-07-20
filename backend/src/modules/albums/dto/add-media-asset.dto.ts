@@ -14,6 +14,11 @@ export class AddMediaAssetDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  thumbnailObjectKey?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   mimeType?: string;
 
   @ApiProperty({ required: false })

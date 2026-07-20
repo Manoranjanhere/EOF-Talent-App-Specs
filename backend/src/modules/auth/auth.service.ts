@@ -14,8 +14,9 @@ import * as bcrypt from "bcrypt";
 import { PrismaService } from "../../database/prisma.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
-import { MobileOtpLoginDto } from "./dto/mobile-otp-login.dto";
 import { SendMobileOtpDto } from "./dto/send-mobile-otp.dto";
+import { FirebaseAdminService } from "./firebase-admin.service";
+import { normalizeMobileE164, phonesMatch } from "./phone.util";
 
 type AuditData = {
   ip: string;
@@ -28,43 +29,41 @@ export class AuthService {
 
   private readonly otpStore = new Map<
     string,
-    { code: string; expiresAt: number }
+    { code: string; expiresAt: number; purpose: "register" | "reset" }
   >();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly firebaseAdmin: FirebaseAdminService
   ) {}
 
   async register(dto: RegisterDto, audit: AuditData) {
-    const email = dto.email?.trim().toLowerCase() || undefined;
-    const mobileNumber = dto.mobileNumber?.trim() || undefined;
+    const email = dto.email.trim().toLowerCase();
+    const mobileNumber = this.requireMobile(dto.mobileNumber);
 
-    if (!email && !mobileNumber) {
-      throw new BadRequestException("Email or mobile number is required");
+    await this.assertPhoneVerified({
+      mobileNumber,
+      firebaseIdToken: dto.firebaseIdToken,
+      otpCode: dto.otpCode,
+      purpose: "register"
+    });
+
+    const existingEmail = await this.prisma.userAccount.findUnique({
+      where: { email }
+    });
+    if (existingEmail) {
+      throw new ConflictException(
+        "An account with this email already exists. Please sign in instead."
+      );
     }
 
-    if (email) {
-      const existingEmail = await this.prisma.userAccount.findUnique({
-        where: { email }
-      });
-      if (existingEmail) {
-        throw new ConflictException(
-          "An account with this email already exists. Please sign in instead."
-        );
-      }
-    }
-
-    if (mobileNumber) {
-      const existingMobile = await this.prisma.userAccount.findUnique({
-        where: { mobileNumber }
-      });
-      if (existingMobile) {
-        throw new ConflictException(
-          "An account with this mobile number already exists. Please sign in instead."
-        );
-      }
+    const existingMobile = await this.findUserByMobile(mobileNumber);
+    if (existingMobile) {
+      throw new ConflictException(
+        "An account with this mobile number already exists. Please sign in instead."
+      );
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -86,7 +85,7 @@ export class AuthService {
               lastUpdateBy: audit.updatedBy
             }
           },
-          profileTalent:
+          profileMember:
             dto.groupId === 1
               ? {
                   create: {
@@ -122,18 +121,41 @@ export class AuthService {
     }
   }
 
+  /** Login with email+password OR phone+password (no OTP). */
   async login(dto: LoginDto, audit: AuditData) {
     const email = dto.email?.trim().toLowerCase();
-    const mobileNumber = dto.mobileNumber?.trim();
+    const mobileNumber = dto.mobileNumber
+      ? this.requireMobile(dto.mobileNumber)
+      : undefined;
 
-    const user = await this.prisma.userAccount.findFirst({
-      where: email ? { email } : { mobileNumber },
-      include: { roles: true }
-    });
-
-    if (!user || !user.passwordHash) {
-      throw new UnauthorizedException("Invalid credentials");
+    if (!email && !mobileNumber) {
+      throw new BadRequestException("Email or mobile number is required");
     }
+    if (email && mobileNumber) {
+      throw new BadRequestException("Use either email or mobile number, not both");
+    }
+
+    const user = email
+      ? await this.prisma.userAccount.findUnique({
+          where: { email },
+          include: { roles: true }
+        })
+      : await this.findUserByMobile(mobileNumber!, true);
+
+    if (!user) {
+      throw new NotFoundException(
+        email
+          ? "No account exists with this email."
+          : "No account exists with this phone number."
+      );
+    }
+
+    if (!user.passwordHash) {
+      throw new UnauthorizedException(
+        "This account has no password set. Please contact support."
+      );
+    }
+
     this.assertLoginAllowed(user);
 
     const passwordOk = await bcrypt.compare(dto.password, user.passwordHash);
@@ -147,7 +169,15 @@ export class AuthService {
           lastUpdateBy: audit.updatedBy
         }
       });
-      throw new UnauthorizedException("Invalid credentials");
+      throw new UnauthorizedException("Incorrect password.");
+    }
+
+    if (mobileNumber && user.mobileNumber !== mobileNumber) {
+      await this.prisma.userAccount.update({
+        where: { id: user.id },
+        data: { mobileNumber }
+      });
+      user.mobileNumber = mobileNumber;
     }
 
     await this.prisma.userAccount.update({
@@ -163,105 +193,193 @@ export class AuthService {
     return this.issueTokens(user);
   }
 
-  async loginWithMobileOtp(dto: MobileOtpLoginDto, audit: AuditData) {
-    const mobileNumber = this.normalizeMobile(dto.mobileNumber);
-    if (!mobileNumber) {
-      throw new BadRequestException("Mobile number is required");
+  /** Dev bypass only — real SMS is sent by Firebase on the device. */
+  async sendRegistrationOtp(dto: SendMobileOtpDto) {
+    if (!this.isOtpDevMode()) {
+      throw new BadRequestException(
+        "Backend OTP is disabled. Use Firebase Phone Auth on the mobile app for real SMS."
+      );
     }
 
-    const user = await this.prisma.userAccount.findUnique({
-      where: { mobileNumber },
-      include: { roles: true }
-    });
-    if (!user) {
-      throw new NotFoundException(
-        "No account found with this mobile number. Register with this mobile first."
+    const mobileNumber = this.requireMobile(dto.mobileNumber);
+    const existing = await this.findUserByMobile(mobileNumber);
+    if (existing) {
+      throw new ConflictException(
+        "An account with this mobile number already exists. Please sign in instead."
       );
+    }
+
+    const otpCode = "123456";
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+    this.otpStore.set(mobileNumber, { code: otpCode, expiresAt, purpose: "register" });
+    this.logger.log(`[DEV OTP] mobile=${mobileNumber} code=${otpCode}`);
+
+    return {
+      success: true,
+      message: "OTP generated (dev mode).",
+      expiresInSeconds: 300,
+      otpCode
+    };
+  }
+
+  /**
+   * Confirms an account exists for reset. In OTP_TEST_BYPASS mode returns a
+   * fixed OTP; otherwise the mobile app must send real SMS via Firebase.
+   */
+  async sendPasswordResetOtp(dto: SendMobileOtpDto) {
+    const mobileNumber = this.requireMobile(dto.mobileNumber);
+    const user = await this.findUserByMobile(mobileNumber);
+    if (!user) {
+      throw new NotFoundException("No account exists with this phone number.");
     }
     this.assertLoginAllowed(user);
 
+    if (!this.isOtpDevMode()) {
+      return {
+        success: true,
+        message: "Account found. Complete Firebase phone OTP on the device.",
+        expiresInSeconds: 300
+      };
+    }
+
+    const otpCode = "123456";
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+    this.otpStore.set(mobileNumber, { code: otpCode, expiresAt, purpose: "reset" });
+    this.logger.log(`[DEV RESET OTP] mobile=${mobileNumber} code=${otpCode}`);
+
+    return {
+      success: true,
+      message: "OTP generated (dev mode).",
+      expiresInSeconds: 300,
+      otpCode
+    };
+  }
+
+  async resetPassword(
+    dto: {
+      mobileNumber: string;
+      firebaseIdToken?: string;
+      otpCode?: string;
+      newPassword: string;
+    },
+    audit: AuditData
+  ) {
+    const mobileNumber = this.requireMobile(dto.mobileNumber);
+
+    await this.assertPhoneVerified({
+      mobileNumber,
+      firebaseIdToken: dto.firebaseIdToken,
+      otpCode: dto.otpCode,
+      purpose: "reset"
+    });
+
+    const user = await this.findUserByMobile(mobileNumber, true);
+    if (!user) {
+      throw new NotFoundException("No account exists with this phone number.");
+    }
+    this.assertLoginAllowed(user);
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.userAccount.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        loginAttempts: 0,
+        lastUpdateIp: audit.ip,
+        lastUpdateBy: audit.updatedBy,
+        ...(user.mobileNumber !== mobileNumber ? { mobileNumber } : {})
+      }
+    });
+
+    if (user.mobileNumber !== mobileNumber) {
+      user.mobileNumber = mobileNumber;
+    }
+
+    return this.issueTokens(user);
+  }
+
+  private async findUserByMobile(mobileNumber: string): Promise<UserAccount | null>;
+  private async findUserByMobile(
+    mobileNumber: string,
+    withRoles: true
+  ): Promise<(UserAccount & { roles: { groupId: number }[] }) | null>;
+  private async findUserByMobile(mobileNumber: string, withRoles = false) {
+    const digits = mobileNumber.replace(/\D/g, "");
+    const local10 = digits.slice(-10);
+    const candidates = Array.from(
+      new Set([mobileNumber, digits, local10, `+${digits}`].filter(Boolean))
+    );
+
+    if (withRoles) {
+      return this.prisma.userAccount.findFirst({
+        where: { mobileNumber: { in: candidates } },
+        include: { roles: true }
+      });
+    }
+
+    return this.prisma.userAccount.findFirst({
+      where: { mobileNumber: { in: candidates } }
+    });
+  }
+
+  private async assertPhoneVerified(input: {
+    mobileNumber: string;
+    firebaseIdToken?: string;
+    otpCode?: string;
+    purpose: "register" | "reset";
+  }) {
+    if (input.firebaseIdToken?.trim()) {
+      const verified = await this.firebaseAdmin.verifyPhoneIdToken(
+        input.firebaseIdToken
+      );
+      if (!phonesMatch(verified.phoneNumber, input.mobileNumber)) {
+        throw new UnauthorizedException(
+          "Firebase-verified phone does not match the submitted mobile number."
+        );
+      }
+      return;
+    }
+
+    if (input.otpCode?.trim() && this.isOtpDevMode()) {
+      this.verifyDevOtp(input.mobileNumber, input.otpCode, input.purpose);
+      return;
+    }
+
+    throw new BadRequestException(
+      "Phone verification required. Complete Firebase SMS OTP and send firebaseIdToken."
+    );
+  }
+
+  private verifyDevOtp(
+    mobileNumber: string,
+    otpCode: string,
+    purpose: "register" | "reset"
+  ) {
     const otpRecord = this.otpStore.get(mobileNumber);
-    if (!otpRecord) {
+    if (!otpRecord || otpRecord.purpose !== purpose) {
       throw new UnauthorizedException("OTP not requested. Please send OTP first.");
     }
     if (Date.now() > otpRecord.expiresAt) {
       this.otpStore.delete(mobileNumber);
       throw new UnauthorizedException("OTP expired. Please request a new OTP.");
     }
-    if (otpRecord.code !== dto.otpCode.trim()) {
+    if (otpRecord.code !== otpCode.trim()) {
       throw new UnauthorizedException("Invalid OTP");
     }
-
     this.otpStore.delete(mobileNumber);
-
-    await this.prisma.userAccount.update({
-      where: { id: user.id },
-      data: {
-        loginAttempts: 0,
-        loginResetDate: new Date(),
-        lastUpdateIp: audit.ip,
-        lastUpdateBy: audit.updatedBy
-      }
-    });
-
-    return this.issueTokens(user);
   }
 
-  async sendMobileOtp(dto: SendMobileOtpDto) {
-    const mobileNumber = this.normalizeMobile(dto.mobileNumber);
+  private requireMobile(value?: string): string {
+    const mobileNumber = normalizeMobileE164(value);
     if (!mobileNumber) {
       throw new BadRequestException("Mobile number is required");
     }
-
-    const user = await this.prisma.userAccount.findUnique({
-      where: { mobileNumber }
-    });
-    if (!user) {
-      throw new NotFoundException(
-        "No account found with this mobile number. Register with this mobile first, or sign in with email."
-      );
-    }
-    this.assertLoginAllowed(user);
-
-    const devMode = this.isOtpDevMode();
-    const otpCode = devMode
-      ? "123456"
-      : Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 5 * 60 * 1000;
-
-    this.otpStore.set(mobileNumber, { code: otpCode, expiresAt });
-
-    if (devMode) {
-      this.logger.log(
-        `[DEV OTP] mobile=${mobileNumber} code=${otpCode} (valid 5 min; no SMS in MVP)`
-      );
-    } else {
-      this.logger.warn(
-        `OTP generated for ${mobileNumber} but SMS provider is not configured yet`
-      );
-    }
-
-    return {
-      success: true,
-      message: devMode
-        ? "OTP generated (dev mode). Check backend terminal or app hint."
-        : "OTP sent successfully",
-      expiresInSeconds: 300,
-      ...(devMode ? { otpCode } : {})
-    };
-  }
-
-  private normalizeMobile(value?: string): string | undefined {
-    const trimmed = value?.trim();
-    return trimmed || undefined;
+    return mobileNumber;
   }
 
   private isOtpDevMode(): boolean {
     const flag = this.configService.get<string>("OTP_TEST_BYPASS");
-    if (flag !== undefined && flag !== "") {
-      return ["true", "1", "yes"].includes(flag.toLowerCase());
-    }
-    return this.configService.get<string>("NODE_ENV") !== "production";
+    return flag !== undefined && ["true", "1", "yes"].includes(flag.toLowerCase());
   }
 
   private assertLoginAllowed(user: UserAccount) {

@@ -4,6 +4,7 @@ import { GroupId } from "@eof/shared";
 import { Audit } from "../../common/decorators/audit.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { RolesGuard } from "../../common/guards/roles.guard";
 import { TagsService } from "./tags.service";
 import { CreateTagDto } from "./dto/create-tag.dto";
 
@@ -19,7 +20,7 @@ export class TagsController {
 
   @Post()
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(GroupId.Admin, GroupId.TeamAdmin, GroupId.SuperAdmin)
   create(
     @Body() dto: CreateTagDto,

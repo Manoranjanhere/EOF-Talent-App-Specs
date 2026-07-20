@@ -1,5 +1,17 @@
 import { UnauthorizedException } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
+
+jest.mock("../src/modules/auth/firebase-admin.service", () => ({
+  FirebaseAdminService: class FirebaseAdminService {
+    isConfigured() {
+      return false;
+    }
+    verifyPhoneIdToken() {
+      return Promise.reject(new Error("Firebase not configured in tests"));
+    }
+  }
+}));
+
 import { AuthService } from "../src/modules/auth/auth.service";
 
 describe("AuthService", () => {
@@ -19,10 +31,14 @@ describe("AuthService", () => {
         JWT_REFRESH_SECRET: "refresh",
         JWT_ACCESS_EXPIRES: "15m",
         JWT_REFRESH_EXPIRES: "30d",
-        OTP_TEST_BYPASS: "true"
+        OTP_TEST_BYPASS: "false"
       };
       return values[key];
     })
+  };
+  const firebaseMock: any = {
+    isConfigured: jest.fn().mockReturnValue(false),
+    verifyPhoneIdToken: jest.fn()
   };
 
   const audit = { ip: "127.0.0.1", updatedBy: "test" };
@@ -32,12 +48,12 @@ describe("AuthService", () => {
   });
 
   it("logs in with valid password", async () => {
-    const service = new AuthService(prismaMock, jwtMock, configMock);
-    prismaMock.userAccount.findFirst.mockResolvedValue({
+    const service = new AuthService(prismaMock, jwtMock, configMock, firebaseMock);
+    prismaMock.userAccount.findUnique.mockResolvedValue({
       id: "user-1",
       fullName: "Test User",
       email: "test@example.com",
-      mobileNumber: "9999999999",
+      mobileNumber: "+919999999999",
       passwordHash: await bcrypt.hash("Password123", 10),
       loginEnabled: true,
       isActive: true,
@@ -56,8 +72,8 @@ describe("AuthService", () => {
   });
 
   it("rejects locked account", async () => {
-    const service = new AuthService(prismaMock, jwtMock, configMock);
-    prismaMock.userAccount.findFirst.mockResolvedValue({
+    const service = new AuthService(prismaMock, jwtMock, configMock, firebaseMock);
+    prismaMock.userAccount.findUnique.mockResolvedValue({
       id: "user-2",
       passwordHash: "hash",
       loginEnabled: true,

@@ -12,6 +12,13 @@ type LoginResponse = {
   };
 };
 
+type OtpSendResponse = {
+  success: boolean;
+  message: string;
+  expiresInSeconds: number;
+  otpCode?: string;
+};
+
 export function loginByEmailPassword(payload: {
   email?: string;
   mobileNumber?: string;
@@ -23,23 +30,27 @@ export function loginByEmailPassword(payload: {
   });
 }
 
-export function loginByMobileOtp(payload: {
-  mobileNumber: string;
-  otpCode: string;
-}) {
-  return apiRequest<LoginResponse>("/auth/login/mobile-otp", {
+export function sendRegistrationOtp(payload: { mobileNumber: string }) {
+  return apiRequest<OtpSendResponse>("/auth/register/mobile-otp/send", {
     method: "POST",
     body: payload
   });
 }
 
-export function sendMobileOtp(payload: { mobileNumber: string }) {
-  return apiRequest<{
-    success: boolean;
-    message: string;
-    expiresInSeconds: number;
-    otpCode?: string;
-  }>("/auth/login/mobile-otp/send", {
+export function sendPasswordResetOtp(payload: { mobileNumber: string }) {
+  return apiRequest<OtpSendResponse>("/auth/password/reset/otp/send", {
+    method: "POST",
+    body: payload
+  });
+}
+
+export function resetPassword(payload: {
+  mobileNumber: string;
+  newPassword: string;
+  firebaseIdToken?: string;
+  otpCode?: string;
+}) {
+  return apiRequest<LoginResponse>("/auth/password/reset", {
     method: "POST",
     body: payload
   });
@@ -47,10 +58,12 @@ export function sendMobileOtp(payload: { mobileNumber: string }) {
 
 export function registerUser(payload: {
   fullName: string;
-  email?: string;
-  mobileNumber?: string;
+  email: string;
+  mobileNumber: string;
   password: string;
   groupId: number;
+  firebaseIdToken?: string;
+  otpCode?: string;
 }) {
   return apiRequest<LoginResponse>("/auth/register", {
     method: "POST",

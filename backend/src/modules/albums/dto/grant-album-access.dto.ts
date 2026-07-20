@@ -1,9 +1,12 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsIn, IsString, IsUUID } from "class-validator";
+import { IsIn, IsOptional, IsString, Length } from "class-validator";
 
 export class GrantAlbumAccessDto {
-  @ApiProperty()
-  @IsUUID()
+  @ApiProperty({
+    description: "User UUID, email, or mobile number of the member/agency"
+  })
+  @IsString()
+  @Length(3, 120)
   grantedToUserId!: string;
 
   @ApiProperty({ enum: [30, 60, 90], default: 30 })
@@ -11,6 +14,7 @@ export class GrantAlbumAccessDto {
   grantedDays!: 30 | 60 | 90;
 
   @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
   reason?: string;
 }

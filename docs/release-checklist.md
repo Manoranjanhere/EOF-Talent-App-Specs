@@ -5,7 +5,6 @@
 - [ ] Production domains and SSL certificates configured
 - [ ] `backend/.env.production.example` mapped to secret store values
 - [ ] PostgreSQL backups and point-in-time recovery enabled
-- [ ] Redis persistence and memory policies configured
 - [ ] S3 bucket lifecycle and access policy validated
 
 ## Data and Compliance

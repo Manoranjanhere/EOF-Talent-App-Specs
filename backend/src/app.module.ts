@@ -5,7 +5,6 @@ import { join } from "path";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { PrismaModule } from "./database/prisma.module";
 import { AuditContextInterceptor } from "./common/interceptors/audit-context.interceptor";
-import { RolesGuard } from "./common/guards/roles.guard";
 import { AuthModule } from "./modules/auth/auth.module";
 import { UsersModule } from "./modules/users/users.module";
 import { ProfilesModule } from "./modules/profiles/profiles.module";
@@ -18,6 +17,7 @@ import { ChatModule } from "./modules/chat/chat.module";
 import { ModerationModule } from "./modules/moderation/moderation.module";
 import { FeedbackModule } from "./modules/feedback/feedback.module";
 import { HealthModule } from "./modules/health/health.module";
+import { MediaModule } from "./modules/media/media.module";
 
 @Module({
   imports: [
@@ -42,6 +42,7 @@ import { HealthModule } from "./modules/health/health.module";
     ProfilesModule,
     TagsModule,
     AlbumsModule,
+    MediaModule,
     SubscriptionsModule,
     JobsModule,
     SearchModule,
@@ -54,10 +55,6 @@ import { HealthModule } from "./modules/health/health.module";
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard
     },
     {
       provide: APP_INTERCEPTOR,

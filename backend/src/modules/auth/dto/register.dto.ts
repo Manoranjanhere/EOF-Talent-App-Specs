@@ -1,5 +1,13 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsEmail, IsInt, IsOptional, IsString, Length, Min } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  IsEmail,
+  IsInt,
+  IsOptional,
+  IsString,
+  Length,
+  Min,
+  ValidateIf
+} from "class-validator";
 
 export class RegisterDto {
   @ApiProperty()
@@ -7,16 +15,33 @@ export class RegisterDto {
   @Length(2, 120)
   fullName!: string;
 
-  @ApiProperty({ required: false })
-  @IsOptional()
+  @ApiProperty()
   @IsEmail()
-  email?: string;
+  email!: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({
+    description: "Mobile number (10-digit local or E.164, e.g. +919876543210)"
+  })
+  @IsString()
+  @Length(8, 20)
+  mobileNumber!: string;
+
+  @ApiPropertyOptional({
+    description: "Firebase ID token after successful phone OTP (production)."
+  })
+  @ValidateIf((o: RegisterDto) => !o.otpCode)
+  @IsString()
+  @Length(20, 4096)
+  firebaseIdToken?: string;
+
+  @ApiPropertyOptional({
+    description: "Dev-only OTP when OTP_TEST_BYPASS=true."
+  })
+  @ValidateIf((o: RegisterDto) => !o.firebaseIdToken)
   @IsOptional()
   @IsString()
-  @Length(8, 15)
-  mobileNumber?: string;
+  @Length(4, 8)
+  otpCode?: string;
 
   @ApiProperty()
   @IsString()

@@ -10,3 +10,4 @@ export {
   SegmentedControl,
   RoleSelector
 } from "./ui";
+export { ThemeToggleButton } from "./theme-toggle-button";

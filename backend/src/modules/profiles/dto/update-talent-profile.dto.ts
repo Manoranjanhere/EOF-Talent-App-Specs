@@ -1,5 +1,14 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsBoolean, IsOptional, IsString, Length, MaxLength } from "class-validator";
+import {
+  IsBoolean,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Length,
+  Max,
+  MaxLength,
+  Min
+} from "class-validator";
 
 export class UpdateTalentProfileDto {
   @ApiProperty({ required: false })
@@ -10,12 +19,29 @@ export class UpdateTalentProfileDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(120)
   age?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   gender?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(50)
+  @Max(250)
+  heightCm?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(20)
+  @Max(300)
+  weightKg?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -54,5 +80,5 @@ export class UpdateTalentProfileDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsBoolean()
-  lookingForWork?: boolean;
+  isAvailable?: boolean;
 }

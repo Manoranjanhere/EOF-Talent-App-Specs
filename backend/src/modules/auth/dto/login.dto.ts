@@ -10,7 +10,7 @@ export class LoginDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  @Length(8, 15)
+  @Length(8, 20)
   mobileNumber?: string;
 
   @ApiProperty()
