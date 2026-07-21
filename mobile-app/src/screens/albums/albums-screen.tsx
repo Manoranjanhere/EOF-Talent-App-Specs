@@ -8,6 +8,7 @@ import {
   View
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import * as ImagePicker from "expo-image-picker";
 import { CachedMediaImage } from "../../components/cached-media-image";
 import { MediaLightbox, MediaPreview } from "../../components/media-lightbox";
@@ -37,6 +38,11 @@ import {
 import { generateVideoThumbnail } from "../../services/video-thumbnail";
 import { useAuth } from "../../state/auth-context";
 import { useTheme } from "../../theme/theme-context";
+import type { AlbumsStackParamList, ProfileStackParamList } from "../../navigation/types";
+
+type AlbumDetailProps =
+  | NativeStackScreenProps<AlbumsStackParamList, "AlbumDetail">
+  | NativeStackScreenProps<ProfileStackParamList, "AlbumDetail">;
 
 type PendingUpload = {
   id: string;
@@ -159,27 +165,71 @@ export function AlbumsScreen({ navigation }: { navigation?: any }) {
           const cover = mediaUrl(
             coverAsset?.thumbnailUrl || coverAsset?.url || coverAsset?.objectKey
           );
+          const coverKey = coverAsset?.thumbnailObjectKey || coverAsset?.objectKey;
           return (
-            <View key={album.id} style={{ marginBottom: 12, gap: 8 }}>
-              <ListCard
-                title={album.title}
-                meta={[
-                  album.visibility,
-                  `${album._count?.assets ?? 0}/10 media`,
-                  album.visibility === "PRIVATE"
-                    ? `${album._count?.accessGrants ?? 0} access grants`
-                    : "Visible to all"
-                ]}
-                badge={album.visibility}
+            <View key={album.id} style={{ marginBottom: 14, gap: 10 }}>
+              <Pressable
                 onPress={() => navigation?.navigate?.("AlbumDetail", { albumId: album.id })}
-              />
-              {cover ? (
-                <CachedMediaImage
-                  uri={cover}
-                  cacheKey={coverAsset?.thumbnailObjectKey || coverAsset?.objectKey}
-                  style={{ width: "100%", height: 140, borderRadius: 10 }}
-                />
-              ) : null}
+                style={({ pressed }) => ({
+                  borderRadius: 18,
+                  overflow: "hidden",
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.card,
+                  opacity: pressed ? 0.95 : 1,
+                  elevation: 3,
+                  shadowColor: "#0F172A",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.08,
+                  shadowRadius: 12
+                })}
+              >
+                {cover ? (
+                  <CachedMediaImage
+                    uri={cover}
+                    cacheKey={coverKey}
+                    style={{ width: "100%", height: 160 }}
+                  />
+                ) : (
+                  <View
+                    style={{
+                      height: 120,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: colors.inset
+                    }}
+                  >
+                    <Text style={{ color: colors.muted, fontWeight: "600" }}>{album.title}</Text>
+                  </View>
+                )}
+                <View style={{ padding: 14, gap: 8 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <Text style={{ color: colors.text, fontSize: 17, fontWeight: "800", flex: 1 }}>
+                      {album.title}
+                    </Text>
+                    <View
+                      style={{
+                        backgroundColor: colors.primarySoft,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: 999,
+                        borderWidth: 1,
+                        borderColor: colors.border
+                      }}
+                    >
+                      <Text style={{ color: colors.accentText, fontSize: 10, fontWeight: "800" }}>
+                        {album.visibility}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={{ color: colors.muted, fontSize: 12 }}>
+                    {album._count?.assets ?? 0}/10 media ·{" "}
+                    {album.visibility === "PRIVATE"
+                      ? `${album._count?.accessGrants ?? 0} access grants`
+                      : "Visible to all"}
+                  </Text>
+                </View>
+              </Pressable>
               <DangerButton
                 title={busyId === album.id ? "Deleting..." : "Delete album"}
                 onPress={() => onDeleteAlbum(album)}
@@ -192,13 +242,7 @@ export function AlbumsScreen({ navigation }: { navigation?: any }) {
   );
 }
 
-export function AlbumDetailScreen({
-  route,
-  navigation
-}: {
-  route: { params: { albumId: string } };
-  navigation: any;
-}) {
+export function AlbumDetailScreen({ route, navigation }: AlbumDetailProps) {
   const albumId = route.params.albumId;
   const { accessToken } = useAuth();
   const { colors } = useTheme();
@@ -217,11 +261,18 @@ export function AlbumDetailScreen({
     () => ({
       width: MEDIA_TILE,
       height: MEDIA_TILE,
-      borderRadius: 10,
+      borderRadius: 14,
       overflow: "hidden" as const,
-      backgroundColor: colors.inset
+      backgroundColor: colors.inset,
+      borderWidth: 1,
+      borderColor: colors.border,
+      elevation: 2,
+      shadowColor: "#0F172A",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6
     }),
-    [colors.inset]
+    [colors.inset, colors.border]
   );
 
   const load = async () => {

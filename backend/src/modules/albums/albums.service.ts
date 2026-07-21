@@ -50,6 +50,51 @@ export class AlbumsService {
     );
   }
 
+  /** Public albums + private albums the viewer has an active grant for. */
+  async listVisibleAlbumsForUser(viewerUserId: string, targetUserId: string) {
+    const now = new Date();
+    const albums = await this.prisma.mediaAlbum.findMany({
+      where: {
+        ownerUserId: targetUserId,
+        isActive: true,
+        OR: [
+          { visibility: AlbumVisibility.PUBLIC },
+          {
+            visibility: AlbumVisibility.PRIVATE,
+            accessGrants: {
+              some: {
+                grantedToUserId: viewerUserId,
+                isActive: true,
+                startsAt: { lte: now },
+                expiresAt: { gt: now }
+              }
+            }
+          }
+        ]
+      },
+      include: {
+        assets: {
+          where: { isActive: true },
+          orderBy: { createdAt: "asc" },
+          take: 1
+        },
+        _count: {
+          select: {
+            assets: { where: { isActive: true } }
+          }
+        }
+      },
+      orderBy: { sortOrder: "asc" }
+    });
+
+    return Promise.all(
+      albums.map(async (album) => ({
+        ...album,
+        assets: await Promise.all(album.assets.map((asset) => this.hydrateAsset(asset)))
+      }))
+    );
+  }
+
   async getAlbum(ownerUserId: string, albumId: string) {
     const album = await this.prisma.mediaAlbum.findFirst({
       where: { id: albumId, ownerUserId, isActive: true },
@@ -77,6 +122,55 @@ export class AlbumsService {
     if (!album) {
       throw new NotFoundException("Album not found");
     }
+    return {
+      ...album,
+      assets: await Promise.all(album.assets.map((asset) => this.hydrateAsset(asset)))
+    };
+  }
+
+  /** Owner, public album, or active private grant. */
+  async getAlbumForViewer(viewerUserId: string, albumId: string) {
+    const album = await this.prisma.mediaAlbum.findFirst({
+      where: { id: albumId, isActive: true },
+      include: {
+        assets: {
+          where: { isActive: true },
+          orderBy: { createdAt: "asc" }
+        }
+      }
+    });
+    if (!album) {
+      throw new NotFoundException("Album not found");
+    }
+
+    if (album.ownerUserId === viewerUserId) {
+      return {
+        ...album,
+        assets: await Promise.all(album.assets.map((asset) => this.hydrateAsset(asset)))
+      };
+    }
+
+    if (album.visibility === AlbumVisibility.PUBLIC) {
+      return {
+        ...album,
+        assets: await Promise.all(album.assets.map((asset) => this.hydrateAsset(asset)))
+      };
+    }
+
+    const now = new Date();
+    const grant = await this.prisma.albumAccessGrant.findFirst({
+      where: {
+        albumId,
+        grantedToUserId: viewerUserId,
+        isActive: true,
+        startsAt: { lte: now },
+        expiresAt: { gt: now }
+      }
+    });
+    if (!grant) {
+      throw new ForbiddenException("Album access denied");
+    }
+
     return {
       ...album,
       assets: await Promise.all(album.assets.map((asset) => this.hydrateAsset(asset)))

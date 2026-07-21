@@ -101,21 +101,6 @@ export function HelpIcon({ color = "#1D4ED8", size = 24 }: IconProps) {
   );
 }
 
-export function CompanyIcon({ color = "#1D4ED8", size = 24 }: IconProps) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M4 20V8l8-4 8 4v12"
-        stroke={color}
-        strokeWidth={1.8}
-        strokeLinejoin="round"
-      />
-      <Path d="M9 20v-5h6v5" stroke={color} strokeWidth={1.8} strokeLinejoin="round" />
-      <Path d="M9 10h.01M12 10h.01M15 10h.01M9 13h.01M12 13h.01M15 13h.01" stroke={color} strokeWidth={2} strokeLinecap="round" />
-    </Svg>
-  );
-}
-
 export function PostJobIcon({ color = "#1D4ED8", size = 24 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -234,6 +219,28 @@ export function EyeOffIcon({ color = "#64748B", size = 22 }: IconProps) {
   );
 }
 
+export function ChevronBackIcon({ color = "#0F172A", size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M14.5 6L9 12l5.5 6"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function SendIcon({ color = "#fff", size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+    </Svg>
+  );
+}
+
 export const tabIcons = {
   Home: HomeIcon,
   Discover: DiscoverIcon,
@@ -242,7 +249,6 @@ export const tabIcons = {
   Albums: AlbumsIcon,
   Profile: ProfileIcon,
   Help: HelpIcon,
-  Company: CompanyIcon,
   PostJob: PostJobIcon,
   Reports: ReportsIcon,
   Users: UsersIcon

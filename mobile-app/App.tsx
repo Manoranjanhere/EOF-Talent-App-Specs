@@ -4,6 +4,8 @@ import { NavigationContainer, DarkTheme, DefaultTheme } from "@react-navigation/
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { RootNavigator } from "./src/navigation/root-navigator";
 import { AuthProvider } from "./src/state/auth-context";
+import { ChatSocketProvider } from "./src/state/chat-socket-context";
+import { ChatUnreadProvider } from "./src/state/chat-unread-context";
 import { ThemeProvider, useTheme } from "./src/theme/theme-context";
 
 type ErrorBoundaryState = { error: Error | null };
@@ -69,7 +71,11 @@ export default function App() {
       <ErrorBoundary>
         <ThemeProvider>
           <AuthProvider>
-            <AppShell />
+            <ChatSocketProvider>
+              <ChatUnreadProvider>
+                <AppShell />
+              </ChatUnreadProvider>
+            </ChatSocketProvider>
           </AuthProvider>
         </ThemeProvider>
       </ErrorBoundary>

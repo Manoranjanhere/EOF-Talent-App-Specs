@@ -5,6 +5,7 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import { TagLinkType } from "@prisma/client";
+import { GroupId } from "@eof/shared";
 import { PrismaService } from "../../database/prisma.service";
 import { StorageService } from "../storage/storage.service";
 import { UpdateTalentProfileDto } from "./dto/update-talent-profile.dto";
@@ -204,7 +205,7 @@ export class ProfilesService {
     const rater = await this.prisma.userRoleLink.findFirst({
       where: {
         userId: ratedByUserId,
-        groupId: 2,
+        groupId: GroupId.TalentEmployerOrAgency,
         isActive: true
       }
     });
@@ -215,7 +216,7 @@ export class ProfilesService {
     const talent = await this.prisma.userRoleLink.findFirst({
       where: {
         userId: ratedForUserId,
-        groupId: 1,
+        groupId: GroupId.Talent,
         isActive: true
       }
     });
@@ -264,7 +265,7 @@ export class ProfilesService {
     return updated;
   }
 
-  async getUserProfile(userId: string) {
+  async getUserProfile(userId: string, viewerUserId?: string) {
     const profile = await this.prisma.userAccount.findUnique({
       where: { id: userId },
       include: {
@@ -284,10 +285,27 @@ export class ProfilesService {
       throw new NotFoundException("Profile not found");
     }
     const photo = profile.mediaAssets[0];
+
+    let myRating: number | null = null;
+    if (viewerUserId && viewerUserId !== userId) {
+      const existing = await this.prisma.userRating.findUnique({
+        where: {
+          ratedForUserId_ratedByUserId: {
+            ratedForUserId: userId,
+            ratedByUserId: viewerUserId
+          }
+        }
+      });
+      if (existing?.isActive) {
+        myRating = existing.ratingValue;
+      }
+    }
+
     return {
       ...profile,
       profilePhotoUrl: photo ? await this.storage.getReadUrl(photo.objectKey) : null,
-      profilePhotoObjectKey: photo?.objectKey ?? null
+      profilePhotoObjectKey: photo?.objectKey ?? null,
+      myRating
     };
   }
 

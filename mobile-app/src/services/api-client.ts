@@ -27,6 +27,11 @@ export function getApiBaseUrl(): string {
   return API_URL;
 }
 
+/** HTTP API root without `/api` — used for Socket.IO namespace URLs. */
+export function getSocketBaseUrl(): string {
+  return API_URL.replace(/\/api\/?$/, "");
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const url = `${API_URL}${path}`;
   const controller = new AbortController();

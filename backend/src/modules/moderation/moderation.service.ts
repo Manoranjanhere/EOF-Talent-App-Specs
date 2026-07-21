@@ -34,8 +34,27 @@ export class ModerationService {
     return this.prisma.profileFlagReport.findMany({
       where: status ? { status, isActive: true } : { isActive: true },
       include: {
-        reportedUser: true,
-        raisedBy: true
+        reportedUser: {
+          include: {
+            profileTags: {
+              where: { isActive: true },
+              include: { tag: true }
+            },
+            roles: {
+              where: { isActive: true },
+              include: { group: true }
+            },
+            profileOrg: true
+          }
+        },
+        raisedBy: {
+          include: {
+            roles: {
+              where: { isActive: true },
+              include: { group: true }
+            }
+          }
+        }
       },
       orderBy: { createdAt: "desc" }
     });

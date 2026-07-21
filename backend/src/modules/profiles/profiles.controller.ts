@@ -31,8 +31,11 @@ export class ProfilesController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get(":userId")
-  getProfile(@Param("userId") userId: string) {
-    return this.profilesService.getUserProfile(userId);
+  getProfile(
+    @CurrentUser() user: { userId: string },
+    @Param("userId") userId: string
+  ) {
+    return this.profilesService.getUserProfile(userId, user.userId);
   }
 
   @ApiBearerAuth()

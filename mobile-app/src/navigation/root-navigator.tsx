@@ -16,17 +16,18 @@ import { TalentProfileScreen } from "../screens/profile/talent-profile-screen";
 import { OrgProfileScreen } from "../screens/profile/org-profile-screen";
 import { AlbumDetailScreen, AlbumsScreen } from "../screens/albums/albums-screen";
 import { AlbumsStackNavigator } from "./albums-stack";
-import { MemberSearchScreen } from "../screens/search/member-search-screen";
+import { DiscoverStackNavigator } from "./discover-stack";
+import { AdminReportsStackNavigator } from "./admin-reports-stack";
+import { AdminUsersStackNavigator } from "./admin-users-stack";
 import { JobSearchScreen } from "../screens/search/job-search-screen";
-import { JobPostScreen } from "../screens/jobs/job-post-screen";
-import { ChatScreen } from "../screens/chat/chat-screen";
+import { PostJobStackNavigator } from "./post-job-stack";
+import { ChatStackNavigator } from "./chat-stack";
 import { HelpFeedbackScreen } from "../screens/feedback/help-feedback-screen";
-import { ReportsScreen } from "../screens/admin/reports-screen";
-import { UserActionsScreen } from "../screens/admin/user-actions-screen";
+import type { ProfileStackParamList } from "./types";
 
 const AuthStack = createNativeStackNavigator();
 const AppTabs = createBottomTabNavigator();
-const ProfileStack = createNativeStackNavigator();
+const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 
 function ProfileStackNavigator() {
   return (
@@ -63,7 +64,7 @@ function TabsNavigator() {
       {isEmployer && (
         <AppTabs.Screen
           name="Discover"
-          component={MemberSearchScreen}
+          component={DiscoverStackNavigator}
           options={{ title: "Discover" }}
         />
       )}
@@ -71,7 +72,7 @@ function TabsNavigator() {
       {/* Talent browses jobs — employers post jobs, they don't search job listings */}
       {isTalent && <AppTabs.Screen name="Jobs" component={JobSearchScreen} options={{ title: "Jobs" }} />}
 
-      <AppTabs.Screen name="Chat" component={ChatScreen} />
+      <AppTabs.Screen name="Chat" component={ChatStackNavigator} options={{ title: "Chat" }} />
 
       {/* Portfolio albums are for talent only */}
       {isTalent && (
@@ -83,16 +84,26 @@ function TabsNavigator() {
       )}
 
       <AppTabs.Screen name="Profile" component={ProfileStackNavigator} options={{ title: "Profile" }} />
-      <AppTabs.Screen name="Help" component={HelpFeedbackScreen} />
 
       {isEmployer && (
-        <AppTabs.Screen name="PostJob" component={JobPostScreen} options={{ title: "Post job" }} />
+        <AppTabs.Screen name="PostJob" component={PostJobStackNavigator} options={{ title: "Post job" }} />
+      )}
+
+      <AppTabs.Screen name="Help" component={HelpFeedbackScreen} options={{ title: "Help" }} />
+
+      {isAdmin && (
+        <AppTabs.Screen
+          name="Reports"
+          component={AdminReportsStackNavigator}
+          options={{ title: "Reports" }}
+        />
       )}
       {isAdmin && (
-        <AppTabs.Screen name="Reports" component={ReportsScreen} options={{ title: "Reports" }} />
-      )}
-      {isAdmin && (
-        <AppTabs.Screen name="Users" component={UserActionsScreen} options={{ title: "Users" }} />
+        <AppTabs.Screen
+          name="Users"
+          component={AdminUsersStackNavigator}
+          options={{ title: "Users" }}
+        />
       )}
     </AppTabs.Navigator>
   );

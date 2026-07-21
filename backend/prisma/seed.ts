@@ -75,7 +75,7 @@ async function main() {
     create: {
       code: "MSG_MEMBER_100",
       title: "Messaging - Talent",
-      description: "Messaging access for talent members",
+      description: "₹100/month · message talent, employers, and agencies",
       monthlyPriceInr: 100,
       validityDays: 30,
       targetGroupId: 1
@@ -92,7 +92,7 @@ async function main() {
     create: {
       code: "MSG_EMPLOYER_300",
       title: "Messaging - Employer/Agency",
-      description: "Messaging access for employers and agencies",
+      description: "₹300/month · message talent and other members",
       monthlyPriceInr: 300,
       validityDays: 30,
       targetGroupId: 2
@@ -110,7 +110,7 @@ async function main() {
     create: {
       code: "JOB_POST_300_90",
       title: "Job Posting",
-      description: "Single job posting with 90-day validity",
+      description: "₹300 per job · 90-day listing on the job board",
       monthlyPriceInr: 300,
       validityDays: 90,
       targetGroupId: 2,

@@ -12,6 +12,23 @@ import { ApplyJobDto } from "./dto/apply-job.dto";
 export class JobsController {
   constructor(private readonly jobsService: JobsService) {}
 
+  @Get("mine")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  listMyJobs(@CurrentUser() user: { userId: string }) {
+    return this.jobsService.listMyJobs(user.userId);
+  }
+
+  @Get("mine/:jobId")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  getMyJob(
+    @CurrentUser() user: { userId: string },
+    @Param("jobId") jobId: string
+  ) {
+    return this.jobsService.getMyJob(user.userId, jobId);
+  }
+
   @Get()
   listJobs() {
     return this.jobsService.listJobs();

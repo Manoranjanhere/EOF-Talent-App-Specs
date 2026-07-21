@@ -10,6 +10,18 @@ export function getProfile(userId: string, token: string) {
   return apiRequest(`/profiles/${userId}`, { token });
 }
 
+export function rateTalent(
+  token: string,
+  talentUserId: string,
+  payload: { ratingValue: number; comments?: string }
+) {
+  return apiRequest(`/profiles/${talentUserId}/rate`, {
+    method: "POST",
+    token,
+    body: payload
+  });
+}
+
 export function listOrgTypes() {
   return apiRequest<Array<{ id: number; name: string }>>("/profiles/org-types");
 }

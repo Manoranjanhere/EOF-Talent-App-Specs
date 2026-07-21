@@ -26,8 +26,16 @@ export function listMyAlbums(token: string) {
   return apiRequest("/albums/mine", { token });
 }
 
+export function listUserAlbums(token: string, userId: string) {
+  return apiRequest(`/albums/user/${userId}`, { token });
+}
+
 export function getAlbum(token: string, albumId: string) {
   return apiRequest(`/albums/${albumId}`, { token });
+}
+
+export function getAlbumAsViewer(token: string, albumId: string) {
+  return apiRequest(`/albums/${albumId}/view`, { token });
 }
 
 export function deleteAlbum(token: string, albumId: string) {

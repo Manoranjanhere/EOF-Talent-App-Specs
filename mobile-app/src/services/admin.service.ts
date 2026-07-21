@@ -1,4 +1,5 @@
 import { apiRequest } from "./api-client";
+import { GroupId } from "@eof/shared";
 
 export type AdminUser = {
   id: string;
@@ -97,3 +98,21 @@ export function setUserLoginEnabled(token: string, userId: string, loginEnabled:
     body: { loginEnabled }
   });
 }
+
+export function setUserAdminRole(
+  token: string,
+  userId: string,
+  payload: { groupId: number; grant: boolean }
+) {
+  return apiRequest(`/users/${userId}/roles`, {
+    method: "POST",
+    token,
+    body: payload
+  });
+}
+
+export const ADMIN_ROLE_OPTIONS = [
+  { groupId: GroupId.Admin, label: "Admin" },
+  { groupId: GroupId.TeamAdmin, label: "Team Admin" },
+  { groupId: GroupId.SuperAdmin, label: "Super Admin" }
+] as const;

@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, ForbiddenException, BadRequestException, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
+import { GroupId } from "@eof/shared";
 import { PrismaService } from "../../database/prisma.service";
 
 type AuditData = {
@@ -240,5 +241,125 @@ export class UsersService {
     });
 
     return updated;
+  }
+
+  private async assertSuperAdmin(actorUserId: string) {
+    const link = await this.prisma.userRoleLink.findFirst({
+      where: {
+        userId: actorUserId,
+        groupId: GroupId.SuperAdmin,
+        isActive: true
+      }
+    });
+    if (!link) {
+      throw new ForbiddenException("Only Super Admin can manage admin roles");
+    }
+  }
+
+  async setUserAdminRole(
+    actorUserId: string,
+    targetUserId: string,
+    groupId: number,
+    grant: boolean,
+    audit: AuditData
+  ) {
+    await this.assertSuperAdmin(actorUserId);
+
+    const adminGroupIds = [GroupId.Admin, GroupId.TeamAdmin, GroupId.SuperAdmin];
+    if (!adminGroupIds.includes(groupId)) {
+      throw new BadRequestException("Only Admin, Team Admin, or Super Admin roles can be assigned");
+    }
+
+    const target = await this.prisma.userAccount.findUnique({
+      where: { id: targetUserId },
+      include: {
+        roles: {
+          where: { isActive: true },
+          include: { group: true }
+        }
+      }
+    });
+    if (!target) {
+      throw new NotFoundException("User not found");
+    }
+
+    if (grant) {
+      await this.prisma.userRoleLink.upsert({
+        where: {
+          userId_groupId: {
+            userId: targetUserId,
+            groupId
+          }
+        },
+        create: {
+          userId: targetUserId,
+          groupId,
+          lastUpdateIp: audit.ip,
+          lastUpdateBy: audit.updatedBy
+        },
+        update: {
+          isActive: true,
+          lastUpdateIp: audit.ip,
+          lastUpdateBy: audit.updatedBy
+        }
+      });
+    } else {
+      if (targetUserId === actorUserId && groupId === GroupId.SuperAdmin) {
+        const superAdminCount = await this.prisma.userRoleLink.count({
+          where: {
+            groupId: GroupId.SuperAdmin,
+            isActive: true,
+            user: { isActive: true }
+          }
+        });
+        if (superAdminCount <= 1) {
+          throw new BadRequestException("Cannot remove the last Super Admin");
+        }
+      }
+
+      await this.prisma.userRoleLink.updateMany({
+        where: { userId: targetUserId, groupId },
+        data: {
+          isActive: false,
+          lastUpdateIp: audit.ip,
+          lastUpdateBy: audit.updatedBy
+        }
+      });
+    }
+
+    await this.prisma.cloneAuditAdmin.create({
+      data: {
+        sourceTable: "user_role_link",
+        sourceId: targetUserId,
+        actionType: grant ? "GRANT_ADMIN_ROLE" : "REVOKE_ADMIN_ROLE",
+        payloadJson: {
+          targetUserId,
+          groupId,
+          grant,
+          actorUserId
+        },
+        lastUpdateIp: audit.ip,
+        lastUpdateBy: audit.updatedBy
+      }
+    });
+
+    const refreshed = await this.prisma.userAccount.findUnique({
+      where: { id: targetUserId },
+      include: {
+        roles: {
+          where: { isActive: true },
+          include: { group: true }
+        }
+      }
+    });
+
+    return {
+      id: refreshed!.id,
+      fullName: refreshed!.fullName,
+      roles: refreshed!.roles.map((role) => ({
+        groupId: role.groupId,
+        title: role.group.title
+      }))
+    };
   }
 }

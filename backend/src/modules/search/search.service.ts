@@ -69,7 +69,7 @@ export class SearchService {
     };
   }
 
-  async searchJobs(query: JobSearchQuery) {
+  async searchJobs(userId: string, query: JobSearchQuery) {
     const page = query.page ?? 1;
     const pageSize = Math.min(query.pageSize ?? 20, 100);
     const tagIds = query.tagIds?.split(",").map((tag) => tag.trim()).filter(Boolean) ?? [];
@@ -107,6 +107,23 @@ export class SearchService {
       this.prisma.jobPosting.count({ where })
     ]);
 
+    const jobIds = items.map((item) => item.id);
+    const appliedJobIds =
+      jobIds.length > 0
+        ? new Set(
+            (
+              await this.prisma.jobApplication.findMany({
+                where: {
+                  applicantUserId: userId,
+                  jobId: { in: jobIds },
+                  isActive: true
+                },
+                select: { jobId: true }
+              })
+            ).map((row) => row.jobId)
+          )
+        : new Set<string>();
+
     return {
       page,
       pageSize,
@@ -117,9 +134,12 @@ export class SearchService {
         subtitle: item.miniDescription,
         location: `${item.city ?? ""} ${item.country ?? ""}`.trim(),
         payRange: [item.payRangeMin, item.payRangeMax],
+        ageRange: [item.ageRangeMin, item.ageRangeMax],
+        gender: item.gender,
         validTill: item.validTill,
         tags: item.tags.map((tagLink) => tagLink.tag.title),
-        postedBy: item.postedBy.fullName
+        postedBy: item.postedBy.fullName,
+        hasApplied: appliedJobIds.has(item.id)
       }))
     };
   }

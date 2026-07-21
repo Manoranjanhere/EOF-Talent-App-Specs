@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../database/prisma.service";
+import { ChatService } from "../chat/chat.service";
 import { CreateFeedbackDto } from "./dto/create-feedback.dto";
 
 type AuditData = {
@@ -9,10 +10,13 @@ type AuditData = {
 
 @Injectable()
 export class FeedbackService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly chatService: ChatService
+  ) {}
 
-  create(userId: string, dto: CreateFeedbackDto, audit: AuditData) {
-    return this.prisma.helpFeedback.create({
+  async create(userId: string, dto: CreateFeedbackDto, audit: AuditData) {
+    const feedback = await this.prisma.helpFeedback.create({
       data: {
         userId,
         subject: dto.subject,
@@ -21,6 +25,15 @@ export class FeedbackService {
         lastUpdateBy: audit.updatedBy
       }
     });
+
+    await this.chatService.notifyAdminsViaChat(
+      userId,
+      dto.subject,
+      dto.message,
+      audit
+    );
+
+    return feedback;
   }
 
   listForUser(userId: string) {

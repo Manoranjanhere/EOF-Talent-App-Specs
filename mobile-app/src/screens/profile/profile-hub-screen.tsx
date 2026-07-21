@@ -2,14 +2,14 @@ import React, { useCallback, useState } from "react";
 import {
   Alert,
   Dimensions,
-  Pressable,
   Text,
   View
 } from "react-native";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import { GroupId } from "@eof/shared";
-import { CachedMediaImage } from "../../components/cached-media-image";
+import { AlbumGridTile } from "../../components/album-grid-tile";
 import { ImageLightbox } from "../../components/image-lightbox";
+import { ProfileHero } from "../../components/profile-hero";
 import {
   EmptyState,
   PrimaryButton,
@@ -24,8 +24,9 @@ import { useAuth } from "../../state/auth-context";
 import { useTheme } from "../../theme/theme-context";
 
 const GRID = 3;
-const GAP = 2;
-const TILE = Math.floor((Dimensions.get("window").width - 40 - GAP * (GRID - 1)) / GRID);
+const GAP = 8;
+const H_PAD = 20;
+const TILE = Math.floor((Dimensions.get("window").width - H_PAD * 2 - GAP * (GRID - 1)) / GRID);
 
 export function ProfileHubScreen({ navigation }: { navigation: any }) {
   const route = useRoute<any>();
@@ -93,59 +94,24 @@ export function ProfileHubScreen({ navigation }: { navigation: any }) {
         <SecondaryButton title="Sign out" onPress={signOut} />
       }
     >
-      <View style={{ alignItems: "center", marginBottom: 16, gap: 10 }}>
-        <Pressable
-          onPress={() => openPreview(avatarUri, avatarKey)}
-          style={{
-            width: 96,
-            height: 96,
-            borderRadius: 48,
-            overflow: "hidden",
-            backgroundColor: colors.inset,
-            borderWidth: 2,
-            borderColor: colors.border
-          }}
-        >
-          {avatarUri ? (
-            <CachedMediaImage
-              uri={avatarUri}
-              cacheKey={avatarKey}
-              style={{ width: "100%", height: "100%" }}
-            />
-          ) : (
-            <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ color: colors.muted, fontSize: 28 }}>
-                {(profile?.fullName || user?.fullName || "?").slice(0, 1).toUpperCase()}
-              </Text>
-            </View>
-          )}
-        </Pressable>
-        {avatarUri ? (
-          <Text style={{ color: colors.muted, fontSize: 12 }}>Tap photo to enlarge</Text>
-        ) : null}
-        <Text style={{ color: colors.text, fontSize: 20, fontWeight: "700" }}>
-          {profile?.fullName || user?.fullName}
-        </Text>
-        <Text style={{ color: colors.muted, fontSize: 13, textAlign: "center" }}>
-          {[profile?.city, profile?.country].filter(Boolean).join(", ") || "Add your city"}
-        </Text>
-        {isTalent ? (
-          <Text style={{ color: colors.muted, fontSize: 12 }}>
-            ★ {Number(profile?.ratingAverage ?? 0).toFixed(1)}/5 ·{" "}
-            {profile?.isAvailable === false ? "Not looking" : "Looking for work"}
-          </Text>
-        ) : null}
-        {tagTitles.length ? (
-          <Text style={{ color: colors.muted, fontSize: 12, textAlign: "center" }}>
-            {tagTitles.slice(0, 6).join(" · ")}
-          </Text>
-        ) : null}
-        {profile?.miniBio ? (
-          <Text style={{ color: colors.text, fontSize: 14, textAlign: "center" }}>
-            {profile.miniBio}
-          </Text>
-        ) : null}
-      </View>
+      <ProfileHero
+        name={profile?.fullName || user?.fullName || "Member"}
+        subtitle={[profile?.city, profile?.country].filter(Boolean).join(", ") || undefined}
+        avatarUri={avatarUri}
+        avatarKey={avatarKey}
+        onAvatarPress={() => openPreview(avatarUri, avatarKey)}
+        meta={
+          isTalent
+            ? `★ ${Number(profile?.ratingAverage ?? 0).toFixed(1)}/5 · ${
+                profile?.isAvailable === false ? "Not looking" : "Looking for work"
+              }`
+            : isEmployer
+              ? profile?.profileOrg?.legalName || "Employer / Agency"
+              : undefined
+        }
+        tags={tagTitles.slice(0, 8)}
+        bio={profile?.miniBio}
+      />
 
       <View style={{ flexDirection: "row", gap: 10, marginBottom: 16 }}>
         <View style={{ flex: 1 }}>
@@ -173,7 +139,15 @@ export function ProfileHubScreen({ navigation }: { navigation: any }) {
             Up to 5 albums · 9 photos + 1 video each · public or private
           </Text>
 
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: GAP }}>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: GAP,
+              justifyContent: "flex-start",
+              width: "100%"
+            }}
+          >
             {albums.map((album) => {
               const coverAsset = album.assets?.[0];
               const cover = mediaUrl(
@@ -182,56 +156,16 @@ export function ProfileHubScreen({ navigation }: { navigation: any }) {
               const coverKey = (coverAsset?.thumbnailObjectKey ||
                 coverAsset?.objectKey) as string | undefined;
               return (
-                <Pressable
+                <AlbumGridTile
                   key={album.id}
+                  title={album.title}
+                  coverUri={cover}
+                  coverKey={coverKey}
+                  visibility={album.visibility}
                   onPress={() => navigation.navigate("AlbumDetail", { albumId: album.id })}
                   onLongPress={() => openPreview(cover, coverKey)}
-                  style={{
-                    width: TILE,
-                    height: TILE,
-                    backgroundColor: colors.inset,
-                    borderRadius: 4,
-                    overflow: "hidden"
-                  }}
-                >
-                  {cover ? (
-                    <CachedMediaImage
-                      uri={cover}
-                      cacheKey={coverKey}
-                      style={{ width: "100%", height: "100%" }}
-                    />
-                  ) : (
-                    <View
-                      style={{
-                        flex: 1,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: 6
-                      }}
-                    >
-                      <Text style={{ color: colors.muted, fontSize: 11, textAlign: "center" }}>
-                        {album.title}
-                      </Text>
-                    </View>
-                  )}
-                  <View
-                    style={{
-                      position: "absolute",
-                      left: 4,
-                      right: 4,
-                      bottom: 4,
-                      backgroundColor: "rgba(0,0,0,0.45)",
-                      borderRadius: 4,
-                      paddingHorizontal: 4,
-                      paddingVertical: 2
-                    }}
-                  >
-                    <Text style={{ color: "#fff", fontSize: 10 }} numberOfLines={1}>
-                      {album.visibility === "PRIVATE" ? "🔒 " : ""}
-                      {album.title}
-                    </Text>
-                  </View>
-                </Pressable>
+                  style={{ width: TILE, height: TILE }}
+                />
               );
             })}
           </View>

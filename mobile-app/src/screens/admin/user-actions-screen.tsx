@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { GroupId } from "@eof/shared";
 import {
   Card,
   DangerButton,
@@ -13,9 +14,11 @@ import {
   SegmentedControl
 } from "../../components/ui";
 import {
+  ADMIN_ROLE_OPTIONS,
   AdminUser,
   banUser,
   listAdminUsers,
+  setUserAdminRole,
   setUserLoginEnabled,
   unbanUser
 } from "../../services/admin.service";
@@ -24,8 +27,8 @@ import { useTheme } from "../../theme/theme-context";
 
 type StatusFilter = "all" | "active" | "banned";
 
-export function UserActionsScreen() {
-  const { accessToken } = useAuth();
+export function UserActionsScreen({ navigation }: { navigation?: any }) {
+  const { accessToken, user } = useAuth();
   const { colors } = useTheme();
   const [status, setStatus] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
@@ -33,6 +36,8 @@ export function UserActionsScreen() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
+
+  const isSuperAdmin = (user?.roles ?? []).includes(GroupId.SuperAdmin);
 
   const loadUsers = useCallback(async () => {
     if (!accessToken) return;
@@ -58,20 +63,20 @@ export function UserActionsScreen() {
   );
 
   const runUserAction = async (
-    user: AdminUser,
+    target: AdminUser,
     action: "ban" | "unban" | "login_on" | "login_off"
   ) => {
     if (!accessToken) return;
     try {
-      setBusyUserId(user.id);
+      setBusyUserId(target.id);
       if (action === "ban") {
-        await banUser(accessToken, user.id, "Banned from admin panel");
+        await banUser(accessToken, target.id, "Blocked from admin panel");
       } else if (action === "unban") {
-        await unbanUser(accessToken, user.id, "Unbanned from admin panel");
+        await unbanUser(accessToken, target.id, "Unblocked from admin panel");
       } else if (action === "login_on") {
-        await setUserLoginEnabled(accessToken, user.id, true);
+        await setUserLoginEnabled(accessToken, target.id, true);
       } else {
-        await setUserLoginEnabled(accessToken, user.id, false);
+        await setUserLoginEnabled(accessToken, target.id, false);
       }
       await loadUsers();
     } catch (error) {
@@ -81,10 +86,32 @@ export function UserActionsScreen() {
     }
   };
 
+  const toggleAdminRole = async (target: AdminUser, groupId: number, grant: boolean) => {
+    if (!accessToken) return;
+    const label = ADMIN_ROLE_OPTIONS.find((r) => r.groupId === groupId)?.label ?? "Admin role";
+    try {
+      setBusyUserId(target.id);
+      await setUserAdminRole(accessToken, target.id, { groupId, grant });
+      Alert.alert("Role updated", grant ? `${label} granted.` : `${label} removed.`);
+      await loadUsers();
+    } catch (error) {
+      Alert.alert("Role update failed", (error as Error).message);
+    } finally {
+      setBusyUserId(null);
+    }
+  };
+
+  const hasRole = (target: AdminUser, groupId: number) =>
+    target.roles.some((r) => r.groupId === groupId);
+
   return (
     <ScreenLayout
       title="Admin users"
-      subtitle="All members including banned accounts — soft-delete only"
+      subtitle={
+        isSuperAdmin
+          ? "Block users · Super Admin can grant/revoke admin roles"
+          : "Block users and manage login access"
+      }
     >
       <Card>
         <SectionTitle title="Filters" />
@@ -100,7 +127,7 @@ export function UserActionsScreen() {
           options={[
             { value: "all", label: "Everyone" },
             { value: "active", label: "Active" },
-            { value: "banned", label: "Banned" }
+            { value: "banned", label: "Blocked" }
           ]}
         />
         <PrimaryButton title="Refresh list" onPress={loadUsers} loading={loading} disabled={loading} />
@@ -112,50 +139,59 @@ export function UserActionsScreen() {
       {users.length === 0 ? (
         <EmptyState message={loading ? "Loading users..." : "No users found for this filter."} />
       ) : (
-        users.map((user) => {
-          const busy = busyUserId === user.id;
-          const roleLabels = user.roles.map((r) => r.title).join(", ") || "No roles";
+        users.map((target) => {
+          const busy = busyUserId === target.id;
+          const roleLabels = target.roles.map((r) => r.title).join(", ") || "No roles";
           return (
-            <Card key={user.id}>
+            <Card key={target.id}>
               <View style={{ gap: 4 }}>
                 <Text style={{ color: colors.text, fontSize: 17, fontWeight: "700" }}>
-                  {user.fullName}
+                  {target.fullName}
                 </Text>
                 <Text style={{ color: colors.muted, fontSize: 13 }}>
-                  {user.email ?? user.mobileNumber ?? user.id}
+                  {target.email ?? target.mobileNumber ?? target.id}
                 </Text>
                 <Text style={{ color: colors.muted, fontSize: 12 }}>
                   {roleLabels}
-                  {user.city ? ` · ${user.city}` : ""}
-                  {user.country ? `, ${user.country}` : ""}
+                  {target.city ? ` · ${target.city}` : ""}
+                  {target.country ? `, ${target.country}` : ""}
                 </Text>
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
                   <StatusChip
-                    label={user.isActive ? "ACTIVE" : "BANNED"}
-                    tone={user.isActive ? "ok" : "bad"}
+                    label={target.isActive ? "ACTIVE" : "BLOCKED"}
+                    tone={target.isActive ? "ok" : "bad"}
                   />
                   <StatusChip
-                    label={user.loginEnabled ? "LOGIN ON" : "LOGIN OFF"}
-                    tone={user.loginEnabled ? "ok" : "warn"}
+                    label={target.loginEnabled ? "LOGIN ON" : "LOGIN OFF"}
+                    tone={target.loginEnabled ? "ok" : "warn"}
                   />
                 </View>
+                <Pressable onPress={() => navigation?.navigate("MemberProfile", { userId: target.id })}>
+                  <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "600", marginTop: 6 }}>
+                    View full profile →
+                  </Text>
+                </Pressable>
               </View>
 
-              <View style={{ gap: 8, marginTop: 4 }}>
-                {user.isActive ? (
+              <View style={{ gap: 8, marginTop: 10 }}>
+                {target.isActive ? (
                   <DangerButton
-                    title={busy ? "Working..." : "Ban user"}
+                    title={busy ? "Working..." : "Block user"}
                     onPress={() =>
-                      Alert.alert("Ban user?", `${user.fullName} will be marked inactive.`, [
+                      Alert.alert("Block user?", `${target.fullName} will be marked inactive.`, [
                         { text: "Cancel", style: "cancel" },
-                        { text: "Ban", style: "destructive", onPress: () => void runUserAction(user, "ban") }
+                        {
+                          text: "Block",
+                          style: "destructive",
+                          onPress: () => void runUserAction(target, "ban")
+                        }
                       ])
                     }
                   />
                 ) : (
                   <PrimaryButton
-                    title={busy ? "Working..." : "Unban user"}
-                    onPress={() => void runUserAction(user, "unban")}
+                    title={busy ? "Working..." : "Unblock user"}
+                    onPress={() => void runUserAction(target, "unban")}
                     disabled={busy}
                     loading={busy}
                   />
@@ -164,16 +200,54 @@ export function UserActionsScreen() {
                   title={
                     busy
                       ? "Working..."
-                      : user.loginEnabled
+                      : target.loginEnabled
                         ? "Disable login"
                         : "Enable login"
                   }
                   onPress={() =>
-                    void runUserAction(user, user.loginEnabled ? "login_off" : "login_on")
+                    void runUserAction(target, target.loginEnabled ? "login_off" : "login_on")
                   }
                   disabled={busy}
                 />
               </View>
+
+              {isSuperAdmin ? (
+                <View style={{ marginTop: 12, gap: 8 }}>
+                  <SectionTitle title="Admin roles (Super Admin)" />
+                  {ADMIN_ROLE_OPTIONS.map((role) => {
+                    const assigned = hasRole(target, role.groupId);
+                    return (
+                      <SecondaryButton
+                        key={role.groupId}
+                        title={
+                          busy
+                            ? "Working..."
+                            : assigned
+                              ? `Remove ${role.label}`
+                              : `Make ${role.label}`
+                        }
+                        onPress={() =>
+                          Alert.alert(
+                            assigned ? `Remove ${role.label}?` : `Grant ${role.label}?`,
+                            assigned
+                              ? `${target.fullName} will lose ${role.label} access.`
+                              : `${target.fullName} will get ${role.label} access.`,
+                            [
+                              { text: "Cancel", style: "cancel" },
+                              {
+                                text: assigned ? "Remove" : "Grant",
+                                style: assigned ? "destructive" : "default",
+                                onPress: () => void toggleAdminRole(target, role.groupId, !assigned)
+                              }
+                            ]
+                          )
+                        }
+                        disabled={busy}
+                      />
+                    );
+                  })}
+                </View>
+              ) : null}
             </Card>
           );
         })

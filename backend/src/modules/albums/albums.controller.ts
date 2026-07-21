@@ -38,6 +38,37 @@ export class AlbumsController {
     return this.albumsService.listMyAlbums(user.userId);
   }
 
+  /** Employers (and others) can browse a talent's visible albums. */
+  @Get("user/:userId")
+  @Roles(
+    GroupId.Talent,
+    GroupId.TalentEmployerOrAgency,
+    GroupId.Admin,
+    GroupId.TeamAdmin,
+    GroupId.SuperAdmin
+  )
+  listForUser(
+    @CurrentUser() user: { userId: string },
+    @Param("userId") userId: string
+  ) {
+    return this.albumsService.listVisibleAlbumsForUser(user.userId, userId);
+  }
+
+  @Get(":albumId/view")
+  @Roles(
+    GroupId.Talent,
+    GroupId.TalentEmployerOrAgency,
+    GroupId.Admin,
+    GroupId.TeamAdmin,
+    GroupId.SuperAdmin
+  )
+  viewAlbum(
+    @CurrentUser() user: { userId: string },
+    @Param("albumId") albumId: string
+  ) {
+    return this.albumsService.getAlbumForViewer(user.userId, albumId);
+  }
+
   @Get(":albumId")
   getAlbum(
     @CurrentUser() user: { userId: string },

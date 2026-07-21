@@ -1,6 +1,7 @@
 import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { GroupId } from "@eof/shared";
+import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
@@ -25,7 +26,10 @@ export class SearchController {
   /** Talent browses open jobs — employers post jobs instead of searching listings. */
   @Get("jobs")
   @Roles(GroupId.Talent, GroupId.Admin, GroupId.TeamAdmin, GroupId.SuperAdmin)
-  searchJobs(@Query() query: JobSearchQuery) {
-    return this.searchService.searchJobs(query);
+  searchJobs(
+    @CurrentUser() user: { userId: string },
+    @Query() query: JobSearchQuery
+  ) {
+    return this.searchService.searchJobs(user.userId, query);
   }
 }

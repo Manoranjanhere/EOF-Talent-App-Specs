@@ -49,16 +49,20 @@ export function ScreenLayout({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerRow}>
-          <View style={styles.headerText}>
-            <View style={styles.brandRow}>
-              <AppLogoIcon size={28} />
-              <Text style={styles.brand}>EOF Talent</Text>
+        <View style={styles.headerBand}>
+          <View style={styles.headerRow}>
+            <View style={styles.headerText}>
+              <View style={styles.brandRow}>
+                <View style={styles.logoBadge}>
+                  <AppLogoIcon size={22} />
+                </View>
+                <Text style={styles.brand}>EOF Talent</Text>
+              </View>
+              <Text style={styles.title}>{title}</Text>
+              {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
             </View>
-            <Text style={styles.title}>{title}</Text>
-            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+            {headerRight}
           </View>
-          {headerRight}
         </View>
         {children}
         {footer ? <View style={styles.footer}>{footer}</View> : null}
@@ -225,21 +229,23 @@ export function SegmentedControl<T extends string>({
   const styles = useStyles();
 
   return (
-    <View style={styles.segmentRow}>
-      {options.map((option) => {
-        const active = option.value === value;
-        return (
-          <Pressable
-            key={option.value}
-            onPress={() => onChange(option.value)}
-            style={[styles.segment, active && styles.segmentActive]}
-          >
-            <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
-              {option.label}
-            </Text>
-          </Pressable>
-        );
-      })}
+    <View style={styles.segmentWrap}>
+      <View style={styles.segmentRow}>
+        {options.map((option) => {
+          const active = option.value === value;
+          return (
+            <Pressable
+              key={option.value}
+              onPress={() => onChange(option.value)}
+              style={[styles.segment, active && styles.segmentActive]}
+            >
+              <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -292,29 +298,44 @@ export function ListCard({
   badge?: string;
   onPress?: () => void;
 }) {
+  const { colors: c } = useTheme();
   const styles = useStyles();
   const content = (
     <>
       <View style={styles.listCardTop}>
-        <Text style={styles.listCardTitle}>{title}</Text>
-        {badge ? (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{badge}</Text>
-          </View>
-        ) : null}
+        <View style={{ flex: 1, paddingRight: 8 }}>
+          <Text style={styles.listCardTitle}>{title}</Text>
+          {subtitle ? <Text style={styles.listCardSubtitle}>{subtitle}</Text> : null}
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          {badge ? (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{badge}</Text>
+            </View>
+          ) : null}
+          {onPress ? (
+            <Text style={{ color: c.primary, fontSize: 20, fontWeight: "300", marginTop: -2 }}>›</Text>
+          ) : null}
+        </View>
       </View>
-      {subtitle ? <Text style={styles.listCardSubtitle}>{subtitle}</Text> : null}
-      {meta?.map((line) => (
-        <Text key={line} style={styles.listCardMeta}>
-          {line}
-        </Text>
-      ))}
+      {meta?.length ? (
+        <View style={styles.listCardMetaWrap}>
+          {meta.map((line) => (
+            <View key={line} style={styles.metaChip}>
+              <Text style={styles.metaChipText}>{line}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
     </>
   );
 
   if (onPress) {
     return (
-      <Pressable onPress={onPress} style={({ pressed }) => [styles.listCard, pressed && styles.listCardPressed]}>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [styles.listCard, pressed && styles.listCardPressed]}
+      >
         {content}
       </Pressable>
     );
@@ -323,11 +344,69 @@ export function ListCard({
   return <View style={styles.listCard}>{content}</View>;
 }
 
+export function TagChips({ tags }: { tags: string[] }) {
+  const styles = useStyles();
+  return (
+    <View style={styles.tagRow}>
+      {tags.map((tag) => (
+        <View key={tag} style={styles.tagChip}>
+          <Text style={styles.tagChipText}>{tag}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export function StarRatingPicker({
+  value,
+  onChange
+}: {
+  value: number | null;
+  onChange: (value: number) => void;
+}) {
+  const { colors: c } = useTheme();
+  return (
+    <View style={{ flexDirection: "row", justifyContent: "center", gap: 6 }}>
+      {[1, 2, 3, 4, 5].map((star) => {
+        const active = value !== null && star <= value;
+        return (
+          <Pressable
+            key={star}
+            onPress={() => onChange(star)}
+            accessibilityRole="button"
+            accessibilityLabel={`Rate ${star} out of 5`}
+            style={({ pressed }) => ({
+              padding: 6,
+              borderRadius: 12,
+              backgroundColor: active ? c.primarySoft : "transparent",
+              opacity: pressed ? 0.8 : 1
+            })}
+          >
+            <Text
+              style={{
+                fontSize: 34,
+                color: active ? c.primary : c.border,
+                lineHeight: 38
+              }}
+            >
+              ★
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export function EmptyState({ message }: { message: string }) {
+  const { colors: c } = useTheme();
   const styles = useStyles();
 
   return (
     <View style={styles.empty}>
+      <View style={[styles.emptyIcon, { backgroundColor: c.primarySoft, borderColor: c.border }]}>
+        <Text style={{ fontSize: 22, color: c.primary }}>✦</Text>
+      </View>
       <Text style={styles.emptyText}>{message}</Text>
     </View>
   );
@@ -338,6 +417,7 @@ export function StatPill({ label, value }: { label: string; value: string }) {
 
   return (
     <View style={styles.statPill}>
+      <View style={styles.statAccent} />
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
@@ -347,19 +427,45 @@ export function StatPill({ label, value }: { label: string; value: string }) {
 function createStyles(c: AppColors) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: c.bg },
-    scroll: { flexGrow: 1, padding: 20, paddingBottom: 40, gap: 14 },
-    headerRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
+    scroll: { flexGrow: 1, padding: 20, paddingBottom: 56, gap: 14 },
+    headerBand: {
+      marginHorizontal: -20,
+      marginTop: -20,
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 18,
+      backgroundColor: c.heroTint,
+      borderBottomLeftRadius: 28,
+      borderBottomRightRadius: 28,
+      marginBottom: 6
+    },
+    headerRow: { flexDirection: "row", justifyContent: "space-between" },
     headerText: { flex: 1, paddingRight: 12 },
-    brandRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
+    brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
+    logoBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      backgroundColor: c.card,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: c.border,
+      elevation: 1,
+      shadowColor: "#0F172A",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.06,
+      shadowRadius: 4
+    },
     brand: {
       color: c.primary,
-      fontSize: 12,
-      fontWeight: "700",
-      letterSpacing: 1.2,
+      fontSize: 11,
+      fontWeight: "800",
+      letterSpacing: 1.4,
       textTransform: "uppercase"
     },
-    title: { color: c.text, fontSize: 26, fontWeight: "800" },
-    subtitle: { color: c.muted, fontSize: 14, marginTop: 6, lineHeight: 20 },
+    title: { color: c.text, fontSize: 28, fontWeight: "800", letterSpacing: -0.5, lineHeight: 34 },
+    subtitle: { color: c.muted, fontSize: 14, marginTop: 6, lineHeight: 21 },
     footer: {
       marginTop: 20,
       width: "100%",
@@ -368,17 +474,17 @@ function createStyles(c: AppColors) {
     },
     card: {
       backgroundColor: c.card,
-      borderRadius: 16,
-      padding: 16,
+      borderRadius: 20,
+      padding: 18,
       borderWidth: 1,
       borderColor: c.border,
       marginBottom: 14,
       gap: 12,
-      elevation: 2,
+      elevation: 4,
       shadowColor: "#0F172A",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.06,
-      shadowRadius: 8
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.07,
+      shadowRadius: 16
     },
     sectionTitle: {
       color: c.text,
@@ -395,9 +501,9 @@ function createStyles(c: AppColors) {
       borderColor: c.border,
       backgroundColor: c.inputBg,
       color: c.text,
-      borderRadius: 10,
+      borderRadius: 12,
       paddingHorizontal: 14,
-      paddingVertical: 12,
+      paddingVertical: 13,
       fontSize: 16
     },
     inputWithToggle: { paddingRight: 48 },
@@ -411,26 +517,31 @@ function createStyles(c: AppColors) {
     },
     primaryBtn: {
       backgroundColor: c.primary,
-      borderRadius: 10,
-      paddingVertical: 14,
+      borderRadius: 14,
+      paddingVertical: 15,
       paddingHorizontal: 16,
       alignItems: "center",
       justifyContent: "center",
       alignSelf: "stretch",
-      minHeight: 48,
-      marginTop: 4
+      minHeight: 50,
+      marginTop: 4,
+      elevation: 3,
+      shadowColor: c.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.28,
+      shadowRadius: 10
     },
     primaryBtnPressed: { backgroundColor: c.primaryPressed },
     secondaryBtn: {
       borderWidth: 1,
       borderColor: c.border,
-      borderRadius: 10,
-      paddingVertical: 14,
+      borderRadius: 14,
+      paddingVertical: 15,
       paddingHorizontal: 16,
       alignItems: "center",
       justifyContent: "center",
       alignSelf: "stretch",
-      minHeight: 48,
+      minHeight: 50,
       backgroundColor: c.inset
     },
     secondaryBtnPressed: { backgroundColor: c.cardElevated },
@@ -452,19 +563,31 @@ function createStyles(c: AppColors) {
     secondaryBtnText: { color: c.text, fontSize: 15, fontWeight: "600" },
     linkBtn: { paddingVertical: 10 },
     linkBtnText: { color: c.primary, fontSize: 15, fontWeight: "600" },
-    segmentRow: { flexDirection: "row", gap: 8 },
+    segmentWrap: {
+      backgroundColor: c.inset,
+      borderRadius: 14,
+      padding: 4,
+      borderWidth: 1,
+      borderColor: c.border
+    },
+    segmentRow: { flexDirection: "row", gap: 4 },
     segment: {
       flex: 1,
-      borderWidth: 1,
-      borderColor: c.border,
       borderRadius: 10,
       paddingVertical: 10,
       alignItems: "center",
-      backgroundColor: c.inset
+      backgroundColor: "transparent"
     },
-    segmentActive: { borderColor: c.primary, backgroundColor: c.primarySoft },
+    segmentActive: {
+      backgroundColor: c.card,
+      elevation: 1,
+      shadowColor: "#0F172A",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.08,
+      shadowRadius: 4
+    },
     segmentText: { color: c.muted, fontWeight: "600", fontSize: 13 },
-    segmentTextActive: { color: c.primary },
+    segmentTextActive: { color: c.primary, fontWeight: "700" },
     roleCard: {
       borderWidth: 1,
       borderColor: c.border,
@@ -477,46 +600,95 @@ function createStyles(c: AppColors) {
     roleTitleActive: { color: c.accentText },
     roleDesc: { color: c.muted, fontSize: 13, marginTop: 4 },
     listCard: {
-      backgroundColor: c.cardElevated,
-      borderRadius: 14,
-      padding: 14,
+      backgroundColor: c.card,
+      borderRadius: 18,
+      padding: 16,
       borderWidth: 1,
       borderColor: c.border,
-      marginBottom: 10
+      marginBottom: 10,
+      elevation: 2,
+      shadowColor: "#0F172A",
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.06,
+      shadowRadius: 10
     },
-    listCardPressed: { opacity: 0.9 },
+    listCardPressed: { opacity: 0.94, transform: [{ scale: 0.995 }] },
     listCardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-    listCardTitle: { color: c.text, fontSize: 17, fontWeight: "700", flex: 1 },
-    listCardSubtitle: { color: c.muted, fontSize: 14, marginTop: 4 },
-    listCardMeta: { color: c.muted, fontSize: 12, marginTop: 4 },
+    listCardTitle: { color: c.text, fontSize: 17, fontWeight: "800", letterSpacing: -0.2 },
+    listCardSubtitle: { color: c.muted, fontSize: 14, marginTop: 4, lineHeight: 20 },
+    listCardMetaWrap: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 },
+    metaChip: {
+      backgroundColor: c.chip,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: c.border
+    },
+    metaChipText: { color: c.chipText, fontSize: 11, fontWeight: "600" },
     badge: {
       backgroundColor: c.primarySoft,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 8,
-      marginLeft: 8
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: c.border
     },
-    badgeText: { color: c.accentText, fontSize: 11, fontWeight: "700" },
+    badgeText: { color: c.accentText, fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
+    tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" },
+    tagChip: {
+      backgroundColor: c.chip,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: c.border
+    },
+    tagChipText: { color: c.chipText, fontSize: 12, fontWeight: "600" },
     empty: {
-      padding: 24,
+      padding: 32,
       alignItems: "center",
-      borderRadius: 12,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: c.border,
       borderStyle: "dashed",
-      backgroundColor: c.inset
+      backgroundColor: c.inset,
+      gap: 12
     },
-    emptyText: { color: c.muted, textAlign: "center" },
+    emptyIcon: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1
+    },
+    emptyText: { color: c.muted, textAlign: "center", fontSize: 14, lineHeight: 22 },
     statPill: {
       flex: 1,
       backgroundColor: c.card,
-      borderRadius: 12,
-      padding: 12,
+      borderRadius: 16,
+      padding: 14,
+      paddingTop: 16,
       borderWidth: 1,
       borderColor: c.border,
-      alignItems: "center"
+      alignItems: "center",
+      overflow: "hidden",
+      elevation: 1,
+      shadowColor: "#0F172A",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 6
+    },
+    statAccent: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 3,
+      backgroundColor: c.primary
     },
     statValue: { color: c.text, fontSize: 18, fontWeight: "800" },
-    statLabel: { color: c.muted, fontSize: 11, marginTop: 4 }
+    statLabel: { color: c.muted, fontSize: 11, marginTop: 4, fontWeight: "600" }
   });
 }

@@ -5,6 +5,7 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import { TagLinkType } from "@prisma/client";
+import { GroupId } from "@eof/shared";
 import { PrismaService } from "../../database/prisma.service";
 import { CreateJobDto } from "./dto/create-job.dto";
 import { ApplyJobDto } from "./dto/apply-job.dto";
@@ -22,7 +23,7 @@ export class JobsService {
     const employerRole = await this.prisma.userRoleLink.findFirst({
       where: {
         userId: postedByUserId,
-        groupId: 2,
+        groupId: GroupId.TalentEmployerOrAgency,
         isActive: true
       }
     });
@@ -30,7 +31,7 @@ export class JobsService {
       throw new ForbiddenException("Only employer or agency can post jobs");
     }
 
-    const hasJobPostingSubscription = await this.prisma.userSubscription.findFirst({
+    const subscription = await this.prisma.userSubscription.findFirst({
       where: {
         userId: postedByUserId,
         isActive: true,
@@ -40,10 +41,30 @@ export class JobsService {
           published: true,
           isActive: true
         }
-      }
+      },
+      orderBy: { purchaseDate: "asc" },
+      include: { plan: true }
     });
-    if (!hasJobPostingSubscription) {
-      throw new ForbiddenException("Active job posting subscription required");
+    if (!subscription) {
+      throw new ForbiddenException(
+        "Purchase a job posting slot (₹300 per job, 90-day listing) before publishing"
+      );
+    }
+
+    if (
+      dto.ageRangeMin != null &&
+      dto.ageRangeMax != null &&
+      dto.ageRangeMin > dto.ageRangeMax
+    ) {
+      throw new BadRequestException("Age range minimum cannot exceed maximum");
+    }
+
+    if (
+      dto.payRangeMin != null &&
+      dto.payRangeMax != null &&
+      dto.payRangeMin > dto.payRangeMax
+    ) {
+      throw new BadRequestException("Pay range minimum cannot exceed maximum");
     }
 
     const combinedTags = [...dto.primaryTagIds, ...dto.secondaryTagIds];
@@ -60,46 +81,101 @@ export class JobsService {
     }
 
     const validTill = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
-    return this.prisma.jobPosting.create({
-      data: {
-        postedByUserId,
-        title: dto.title,
-        miniDescription: dto.miniDescription,
-        gender: dto.gender,
-        ageRangeMin: dto.ageRangeMin,
-        ageRangeMax: dto.ageRangeMax,
-        city: dto.city,
-        country: dto.country,
-        payRangeMin: dto.payRangeMin,
-        payRangeMax: dto.payRangeMax,
-        validTill,
-        lastUpdateIp: audit.ip,
-        lastUpdateBy: audit.updatedBy,
-        tags: {
-          create: [
-            ...dto.primaryTagIds.map((tagId) => ({
-              tagId,
-              linkType: TagLinkType.PRIMARY,
-              lastUpdateIp: audit.ip,
-              lastUpdateBy: audit.updatedBy
-            })),
-            ...dto.secondaryTagIds.map((tagId) => ({
-              tagId,
-              linkType: TagLinkType.SECONDARY,
-              lastUpdateIp: audit.ip,
-              lastUpdateBy: audit.updatedBy
-            }))
-          ]
-        }
-      },
-      include: {
-        tags: {
-          include: {
-            tag: true
+
+    return this.prisma.$transaction(async (tx) => {
+      const job = await tx.jobPosting.create({
+        data: {
+          postedByUserId,
+          title: dto.title,
+          miniDescription: dto.miniDescription,
+          gender: dto.gender,
+          ageRangeMin: dto.ageRangeMin,
+          ageRangeMax: dto.ageRangeMax,
+          city: dto.city,
+          country: dto.country,
+          payRangeMin: dto.payRangeMin,
+          payRangeMax: dto.payRangeMax,
+          validTill,
+          lastUpdateIp: audit.ip,
+          lastUpdateBy: audit.updatedBy,
+          tags: {
+            create: [
+              ...dto.primaryTagIds.map((tagId) => ({
+                tagId,
+                linkType: TagLinkType.PRIMARY,
+                lastUpdateIp: audit.ip,
+                lastUpdateBy: audit.updatedBy
+              })),
+              ...dto.secondaryTagIds.map((tagId) => ({
+                tagId,
+                linkType: TagLinkType.SECONDARY,
+                lastUpdateIp: audit.ip,
+                lastUpdateBy: audit.updatedBy
+              }))
+            ]
+          }
+        },
+        include: {
+          tags: {
+            include: {
+              tag: true
+            }
           }
         }
-      }
+      });
+
+      await tx.userSubscription.update({
+        where: { id: subscription.id },
+        data: {
+          isActive: false,
+          lastUpdateIp: audit.ip,
+          lastUpdateBy: audit.updatedBy
+        }
+      });
+
+      return job;
     });
+  }
+
+  listMyJobs(postedByUserId: string) {
+    return this.prisma.jobPosting.findMany({
+      where: { postedByUserId, isActive: true },
+      include: this.jobInclude(),
+      orderBy: { createdAt: "desc" }
+    });
+  }
+
+  async getMyJob(postedByUserId: string, jobId: string) {
+    const job = await this.prisma.jobPosting.findFirst({
+      where: { id: jobId, postedByUserId, isActive: true },
+      include: this.jobInclude()
+    });
+    if (!job) {
+      throw new NotFoundException("Job not found");
+    }
+    return job;
+  }
+
+  private jobInclude() {
+    return {
+      tags: { where: { isActive: true }, include: { tag: true } },
+      applications: {
+        where: { isActive: true },
+        include: {
+          applicant: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              mobileNumber: true,
+              city: true,
+              country: true
+            }
+          }
+        },
+        orderBy: { createdAt: "desc" as const }
+      }
+    };
   }
 
   listJobs() {

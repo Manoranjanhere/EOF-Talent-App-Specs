@@ -7,7 +7,3 @@ export function submitFeedback(token: string, payload: { subject: string; messag
     body: payload
   });
 }
-
-export function listMyFeedback(token: string) {
-  return apiRequest("/feedback/me", { token });
-}
