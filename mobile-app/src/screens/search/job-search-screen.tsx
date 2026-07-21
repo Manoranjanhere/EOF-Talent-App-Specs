@@ -15,6 +15,7 @@ import { applyToJob } from "../../services/jobs.service";
 import { searchJobs } from "../../services/search.service";
 import { useAuth } from "../../state/auth-context";
 import { useTheme } from "../../theme/theme-context";
+import { formatGenderLabel } from "../../constants/gender";
 
 type JobCard = {
   id: string;
@@ -126,7 +127,7 @@ export function JobSearchScreen() {
               meta={[
                 card.location || "Location N/A",
                 formatPay(card.payRange?.[0], card.payRange?.[1]),
-                card.gender ? `Gender: ${card.gender}` : "Gender: Any",
+                card.gender ? `Gender: ${formatGenderLabel(card.gender)}` : "Gender: Any",
                 formatAge(card.ageRange?.[0], card.ageRange?.[1]),
                 (card.tags ?? []).length ? `Skills: ${(card.tags ?? []).join(" · ")}` : "No skill tags",
                 card.validTill

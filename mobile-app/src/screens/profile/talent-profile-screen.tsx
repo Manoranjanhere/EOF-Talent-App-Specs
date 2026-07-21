@@ -22,6 +22,8 @@ import {
 import { mediaUrl } from "../../services/albums.service";
 import { useAuth } from "../../state/auth-context";
 import { useTheme } from "../../theme/theme-context";
+import type { GenderValue } from "../../constants/gender";
+import { GENDER_OPTIONS, normalizeGender } from "../../constants/gender";
 
 type TagOption = { id: string; slug: string; title: string };
 
@@ -40,7 +42,7 @@ export function TalentProfileScreen({ navigation }: { navigation?: any }) {
   const { colors } = useTheme();
   const [fullName, setFullName] = useState("");
   const [age, setAge] = useState("");
-  const [gender, setGender] = useState("");
+  const [gender, setGender] = useState<GenderValue>("Male");
   const [heightCm, setHeightCm] = useState("");
   const [weightKg, setWeightKg] = useState("");
   const [city, setCity] = useState("");
@@ -78,7 +80,7 @@ export function TalentProfileScreen({ navigation }: { navigation?: any }) {
       const p = profile as any;
       setFullName(p.fullName ?? "");
       setAge(p.age != null ? String(p.age) : "");
-      setGender(p.gender ?? "");
+      setGender(normalizeGender(p.gender) || "Male");
       setHeightCm(p.heightCm != null ? String(p.heightCm) : "");
       setWeightKg(p.weightKg != null ? String(p.weightKg) : "");
       setCity(p.city ?? "");
@@ -155,6 +157,10 @@ export function TalentProfileScreen({ navigation }: { navigation?: any }) {
       Alert.alert("Profile photo required", "Upload at least one profile photo before saving.");
       return;
     }
+    if (!gender) {
+      Alert.alert("Select gender", "Choose Male or Female.");
+      return;
+    }
     if (primaryTagIds.length === 0) {
       Alert.alert("Select tags", "Choose at least one primary skill tag.");
       return;
@@ -165,7 +171,7 @@ export function TalentProfileScreen({ navigation }: { navigation?: any }) {
       await updateTalentProfile(accessToken, {
         fullName: fullName.trim(),
         age: age ? Number(age) : undefined,
-        gender: gender.trim() || undefined,
+        gender,
         heightCm: heightCm ? Number(heightCm) : undefined,
         weightKg: weightKg ? Number(weightKg) : undefined,
         city: city.trim() || undefined,
@@ -204,12 +210,27 @@ export function TalentProfileScreen({ navigation }: { navigation?: any }) {
         <SectionTitle title="Profile photo (required)" />
         {photoUri ? (
           <Pressable onPress={() => !uploadingPhoto && setPreviewUri(photoUri)}>
-            <View style={{ width: 120, height: 120, marginBottom: 8 }}>
-              <CachedMediaImage
-                uri={photoUri}
-                cacheKey={photoCacheKey}
-                style={{ width: 120, height: 120, borderRadius: 16, opacity: uploadingPhoto ? 0.55 : 1 }}
-              />
+            <View
+              style={{
+                width: 128,
+                height: 128,
+                borderRadius: 64,
+                borderWidth: 2,
+                borderColor: colors.border,
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 8,
+                overflow: "hidden",
+                backgroundColor: colors.primarySoft
+              }}
+            >
+              <View style={{ width: 120, height: 120, borderRadius: 60, overflow: "hidden" }}>
+                <CachedMediaImage
+                  uri={photoUri}
+                  cacheKey={photoCacheKey}
+                  style={{ width: 120, height: 120, opacity: uploadingPhoto ? 0.55 : 1 }}
+                />
+              </View>
               {uploadingPhoto ? (
                 <View
                   style={{
@@ -218,7 +239,7 @@ export function TalentProfileScreen({ navigation }: { navigation?: any }) {
                     right: 0,
                     top: 0,
                     bottom: 0,
-                    borderRadius: 16,
+                    borderRadius: 64,
                     backgroundColor: "rgba(0,0,0,0.35)",
                     alignItems: "center",
                     justifyContent: "center"
@@ -254,7 +275,12 @@ export function TalentProfileScreen({ navigation }: { navigation?: any }) {
           placeholder="25"
           keyboardType="number-pad"
         />
-        <LabeledInput label="Gender" value={gender} onChangeText={setGender} placeholder="Female / Male / Other" />
+        <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 6 }}>Gender</Text>
+        <SegmentedControl
+          value={gender}
+          onChange={(value) => setGender(value as GenderValue)}
+          options={GENDER_OPTIONS}
+        />
         <LabeledInput
           label="Height (cm)"
           value={heightCm}
@@ -271,6 +297,21 @@ export function TalentProfileScreen({ navigation }: { navigation?: any }) {
         />
         <LabeledInput label="City" value={city} onChangeText={setCity} placeholder="Mumbai" />
         <LabeledInput label="Country" value={country} onChangeText={setCountry} placeholder="India" />
+      </Card>
+
+      <Card>
+        <SectionTitle title="Job availability" />
+        <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 10, lineHeight: 19 }}>
+          Show employers whether you are open to new work opportunities.
+        </Text>
+        <SegmentedControl
+          value={isAvailable}
+          onChange={setIsAvailable}
+          options={[
+            { value: "yes", label: "Looking for work" },
+            { value: "no", label: "Not looking" }
+          ]}
+        />
       </Card>
 
       <Card>
@@ -374,17 +415,6 @@ export function TalentProfileScreen({ navigation }: { navigation?: any }) {
           placeholder="Tell employers about your experience..."
           multiline
           style={{ minHeight: 100, textAlignVertical: "top" }}
-        />
-        <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 6 }}>
-          Looking for work
-        </Text>
-        <SegmentedControl
-          value={isAvailable}
-          onChange={setIsAvailable}
-          options={[
-            { value: "yes", label: "Yes" },
-            { value: "no", label: "No" }
-          ]}
         />
         <Text style={{ color: colors.muted, fontSize: 12, marginTop: 10 }}>
           Rating: {ratingAverage.toFixed(1)}/5 ({ratingCount} ratings · employers only)

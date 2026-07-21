@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { GroupId } from "@eof/shared";
 import { PrismaService } from "../../database/prisma.service";
+import { StorageService } from "../storage/storage.service";
 import { CreateThreadDto } from "./dto/create-thread.dto";
 import { SendMessageDto } from "./dto/send-message.dto";
 import { BlockUserDto } from "./dto/block-user.dto";
@@ -19,7 +20,10 @@ const MESSAGING_PLAN_CODES = ["MSG_MEMBER_100", "MSG_EMPLOYER_300"];
 
 @Injectable()
 export class ChatService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService
+  ) {}
 
   private async isAdminUser(userId: string) {
     const adminRole = await this.prisma.userRoleLink.findFirst({
@@ -267,9 +271,47 @@ export class ChatService {
       orderBy: { lastUpdateAt: "desc" }
     });
 
+    const otherUserIds = [
+      ...new Set(
+        threads.flatMap((thread) =>
+          thread.participants.filter((p) => p.userId !== userId).map((p) => p.userId)
+        )
+      )
+    ];
+
+    const profilePhotos = otherUserIds.length
+      ? await this.prisma.mediaAsset.findMany({
+          where: {
+            ownerUserId: { in: otherUserIds },
+            isProfilePhoto: true,
+            isActive: true
+          }
+        })
+      : [];
+
+    const photoByUserId = new Map<string, (typeof profilePhotos)[0]>();
+    for (const photo of profilePhotos) {
+      if (!photoByUserId.has(photo.ownerUserId)) {
+        photoByUserId.set(photo.ownerUserId, photo);
+      }
+    }
+
+    const photoUrls = new Map<string, { url: string | null; objectKey: string | null }>();
+    await Promise.all(
+      otherUserIds.map(async (id) => {
+        const photo = photoByUserId.get(id);
+        photoUrls.set(id, {
+          url: photo ? await this.storage.getReadUrl(photo.objectKey) : null,
+          objectKey: photo?.objectKey ?? null
+        });
+      })
+    );
+
     return Promise.all(
       threads.map(async (thread) => {
         const others = thread.participants.filter((p) => p.userId !== userId);
+        const otherUser = others[0]?.user ?? null;
+        const photoMeta = otherUser ? photoUrls.get(otherUser.id) : undefined;
         const lastMessage = thread.messages[0] ?? null;
         const unreadCount = await this.prisma.chatMessage.count({
           where: {
@@ -282,7 +324,13 @@ export class ChatService {
         return {
           id: thread.id,
           title: thread.title,
-          otherUser: others[0]?.user ?? null,
+          otherUser: otherUser
+            ? {
+                ...otherUser,
+                profilePhotoUrl: photoMeta?.url ?? null,
+                profilePhotoObjectKey: photoMeta?.objectKey ?? null
+              }
+            : null,
           lastMessage,
           updatedAt: thread.lastUpdateAt,
           unreadCount

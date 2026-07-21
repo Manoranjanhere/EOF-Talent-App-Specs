@@ -64,7 +64,7 @@ export class SearchService {
         rating: item.ratingAverage,
         isAvailable: item.isAvailable,
         tags: item.profileTags.map((link) => link.tag.title),
-        roleIds: item.roles.map((r) => r.groupId)
+        roleIds: item.roles.filter((r) => r.isActive).map((r) => r.groupId)
       }))
     };
   }

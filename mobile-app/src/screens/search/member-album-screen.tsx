@@ -25,6 +25,7 @@ import { useTheme } from "../../theme/theme-context";
 import type {
   AdminReportsStackParamList,
   AdminUsersStackParamList,
+  ChatStackParamList,
   DiscoverStackParamList,
   PostJobStackParamList
 } from "../../navigation/types";
@@ -33,7 +34,8 @@ type Props =
   | NativeStackScreenProps<DiscoverStackParamList, "MemberAlbum">
   | NativeStackScreenProps<AdminReportsStackParamList, "MemberAlbum">
   | NativeStackScreenProps<AdminUsersStackParamList, "MemberAlbum">
-  | NativeStackScreenProps<PostJobStackParamList, "MemberAlbum">;
+  | NativeStackScreenProps<PostJobStackParamList, "MemberAlbum">
+  | NativeStackScreenProps<ChatStackParamList, "MemberAlbum">;
 
 const SCREEN_W = Dimensions.get("window").width;
 const MEDIA_GAP = 8;

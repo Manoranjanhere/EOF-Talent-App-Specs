@@ -1,61 +1,92 @@
 import React, { useMemo } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Animated, Pressable, View } from "react-native";
 import { MoonIcon, SunIcon } from "./icons";
 import { useTheme } from "../theme/theme-context";
 
-export function ThemeToggleButton() {
-  const { mode, toggleMode, colors } = useTheme();
-  const isLight = mode === "light";
+const KNOB = 38;
+const PAD = 4;
+const GAP = 0;
 
-  const styles = useMemo(
+export function ThemeToggleButton() {
+  const { colors, isDark, setMode, themeProgress } = useTheme();
+
+  const slideX = useMemo(
     () =>
-      StyleSheet.create({
-        track: {
-          flexDirection: "row",
-          alignItems: "center",
-          borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: colors.inset,
-          borderRadius: 999,
-          padding: 3,
-          alignSelf: "flex-start",
-          marginTop: 4,
-          gap: 2
-        },
-        knob: {
-          width: 34,
-          height: 34,
-          borderRadius: 17,
-          alignItems: "center",
-          justifyContent: "center"
-        },
-        knobActive: {
-          backgroundColor: colors.card,
-          borderWidth: 1,
-          borderColor: colors.border,
-          elevation: 2,
-          shadowColor: "#0F172A",
-          shadowOpacity: 0.12,
-          shadowRadius: 4,
-          shadowOffset: { width: 0, height: 1 }
-        }
+      themeProgress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [PAD, PAD + KNOB + GAP]
       }),
-    [colors]
+    [themeProgress]
   );
 
   return (
-    <Pressable
-      onPress={toggleMode}
-      accessibilityRole="button"
-      accessibilityLabel={`Switch to ${isLight ? "dark" : "light"} mode`}
-      style={({ pressed }) => [styles.track, pressed && { opacity: 0.9 }]}
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.inset,
+        borderRadius: 999,
+        padding: PAD,
+        alignSelf: "flex-start",
+        marginTop: 4,
+        width: PAD * 2 + KNOB * 2 + GAP,
+        height: PAD * 2 + KNOB,
+        overflow: "hidden"
+      }}
     >
-      <View style={[styles.knob, isLight && styles.knobActive]}>
-        <SunIcon color={isLight ? "#F59E0B" : colors.muted} size={18} />
-      </View>
-      <View style={[styles.knob, !isLight && styles.knobActive]}>
-        <MoonIcon color={!isLight ? "#A5B4FC" : colors.muted} size={18} />
-      </View>
-    </Pressable>
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          left: 0,
+          top: PAD,
+          width: KNOB,
+          height: KNOB,
+          borderRadius: KNOB / 2,
+          backgroundColor: colors.card,
+          borderWidth: 1,
+          borderColor: colors.primary,
+          transform: [{ translateX: slideX }]
+        }}
+      />
+
+      <Pressable
+        onPress={() => setMode("light")}
+        accessibilityRole="button"
+        accessibilityLabel="Light mode"
+        accessibilityState={{ selected: !isDark }}
+        style={({ pressed }) => ({
+          width: KNOB,
+          height: KNOB,
+          borderRadius: KNOB / 2,
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: pressed ? 0.85 : 1,
+          zIndex: 1
+        })}
+      >
+        <SunIcon color={!isDark ? "#F59E0B" : colors.muted} size={19} />
+      </Pressable>
+
+      <Pressable
+        onPress={() => setMode("dark")}
+        accessibilityRole="button"
+        accessibilityLabel="Dark mode"
+        accessibilityState={{ selected: isDark }}
+        style={({ pressed }) => ({
+          width: KNOB,
+          height: KNOB,
+          borderRadius: KNOB / 2,
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: pressed ? 0.85 : 1,
+          zIndex: 1
+        })}
+      >
+        <MoonIcon color={isDark ? "#A5B4FC" : colors.muted} size={19} />
+      </Pressable>
+    </View>
   );
 }

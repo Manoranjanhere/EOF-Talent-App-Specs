@@ -290,16 +290,30 @@ export function ListCard({
   subtitle,
   meta,
   badge,
+  roleBadge,
   onPress
 }: {
   title: string;
   subtitle?: string;
   meta?: string[];
   badge?: string;
+  roleBadge?: string;
   onPress?: () => void;
 }) {
   const { colors: c } = useTheme();
   const styles = useStyles();
+  const roleBadgeStyle =
+    roleBadge === "Employer"
+      ? styles.roleBadgeEmployer
+      : roleBadge === "Talent"
+        ? styles.roleBadgeTalent
+        : styles.roleBadgeNeutral;
+  const roleBadgeTextStyle =
+    roleBadge === "Employer"
+      ? styles.roleBadgeEmployerText
+      : roleBadge === "Talent"
+        ? styles.roleBadgeTalentText
+        : styles.roleBadgeNeutralText;
   const content = (
     <>
       <View style={styles.listCardTop}>
@@ -307,7 +321,12 @@ export function ListCard({
           <Text style={styles.listCardTitle}>{title}</Text>
           {subtitle ? <Text style={styles.listCardSubtitle}>{subtitle}</Text> : null}
         </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {roleBadge ? (
+            <View style={roleBadgeStyle}>
+              <Text style={roleBadgeTextStyle}>{roleBadge}</Text>
+            </View>
+          ) : null}
           {badge ? (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{badge}</Text>
@@ -568,7 +587,8 @@ function createStyles(c: AppColors) {
       borderRadius: 14,
       padding: 4,
       borderWidth: 1,
-      borderColor: c.border
+      borderColor: c.border,
+      overflow: "hidden"
     },
     segmentRow: { flexDirection: "row", gap: 4 },
     segment: {
@@ -576,7 +596,8 @@ function createStyles(c: AppColors) {
       borderRadius: 10,
       paddingVertical: 10,
       alignItems: "center",
-      backgroundColor: "transparent"
+      backgroundColor: "transparent",
+      overflow: "hidden"
     },
     segmentActive: {
       backgroundColor: c.card,
@@ -584,7 +605,8 @@ function createStyles(c: AppColors) {
       shadowColor: "#0F172A",
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.08,
-      shadowRadius: 4
+      shadowRadius: 4,
+      overflow: "hidden"
     },
     segmentText: { color: c.muted, fontWeight: "600", fontSize: 13 },
     segmentTextActive: { color: c.primary, fontWeight: "700" },
@@ -623,7 +645,8 @@ function createStyles(c: AppColors) {
       paddingVertical: 5,
       borderRadius: 999,
       borderWidth: 1,
-      borderColor: c.border
+      borderColor: c.border,
+      overflow: "hidden"
     },
     metaChipText: { color: c.chipText, fontSize: 11, fontWeight: "600" },
     badge: {
@@ -632,9 +655,40 @@ function createStyles(c: AppColors) {
       paddingVertical: 5,
       borderRadius: 999,
       borderWidth: 1,
-      borderColor: c.border
+      borderColor: c.border,
+      overflow: "hidden"
     },
     badgeText: { color: c.accentText, fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
+    roleBadgeTalent: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      borderWidth: 1,
+      backgroundColor: "#E8F4FD",
+      borderColor: "#B3D9F7",
+      overflow: "hidden"
+    },
+    roleBadgeTalentText: { color: "#1565C0", fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
+    roleBadgeEmployer: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      borderWidth: 1,
+      backgroundColor: "#FFF4E5",
+      borderColor: "#FFD699",
+      overflow: "hidden"
+    },
+    roleBadgeEmployerText: { color: "#B45309", fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
+    roleBadgeNeutral: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      borderWidth: 1,
+      backgroundColor: c.chip,
+      borderColor: c.border,
+      overflow: "hidden"
+    },
+    roleBadgeNeutralText: { color: c.chipText, fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
     tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" },
     tagChip: {
       backgroundColor: c.chip,
@@ -661,7 +715,8 @@ function createStyles(c: AppColors) {
       borderRadius: 26,
       alignItems: "center",
       justifyContent: "center",
-      borderWidth: 1
+      borderWidth: 1,
+      overflow: "hidden"
     },
     emptyText: { color: c.muted, textAlign: "center", fontSize: 14, lineHeight: 22 },
     statPill: {

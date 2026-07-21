@@ -23,6 +23,8 @@ import {
 } from "../../services/subscriptions.service";
 import { useAuth } from "../../state/auth-context";
 import { useTheme } from "../../theme/theme-context";
+import type { JobGenderValue } from "../../constants/gender";
+import { JOB_GENDER_OPTIONS } from "../../constants/gender";
 import type { PostJobStackParamList } from "../../navigation/types";
 
 type Props = NativeStackScreenProps<PostJobStackParamList, "PostJobHome">;
@@ -48,7 +50,7 @@ export function JobPostScreen({ navigation }: Props) {
 
   const [title, setTitle] = useState("");
   const [miniDescription, setMiniDescription] = useState("");
-  const [gender, setGender] = useState<"any" | "male" | "female" | "other">("any");
+  const [gender, setGender] = useState<JobGenderValue>("any");
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
   const [city, setCity] = useState("");
@@ -216,16 +218,7 @@ export function JobPostScreen({ navigation }: Props) {
           style={{ minHeight: 100, textAlignVertical: "top" }}
         />
         <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 6 }}>Gender</Text>
-        <SegmentedControl
-          value={gender}
-          onChange={setGender}
-          options={[
-            { value: "any", label: "Any" },
-            { value: "male", label: "Male" },
-            { value: "female", label: "Female" },
-            { value: "other", label: "Other" }
-          ]}
-        />
+        <SegmentedControl value={gender} onChange={setGender} options={JOB_GENDER_OPTIONS} />
         <View style={{ flexDirection: "row", gap: 10 }}>
           <View style={{ flex: 1 }}>
             <LabeledInput

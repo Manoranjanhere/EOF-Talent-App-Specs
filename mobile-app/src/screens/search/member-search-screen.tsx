@@ -20,6 +20,8 @@ import { searchMembers } from "../../services/search.service";
 import { useAuth } from "../../state/auth-context";
 import { useTheme } from "../../theme/theme-context";
 import type { DiscoverStackParamList } from "../../navigation/types";
+import type { GenderFilterValue } from "../../constants/gender";
+import { GENDER_FILTER_OPTIONS } from "../../constants/gender";
 
 type Props = NativeStackScreenProps<DiscoverStackParamList, "MemberSearch">;
 
@@ -27,6 +29,13 @@ type RoleFilter = "all" | "talent" | "employer";
 type TagOption = { id: string; slug: string; title: string };
 
 const MAX_SEARCH_TAGS = 5;
+
+function memberRoleLabel(roleIds?: number[]): string | undefined {
+  if (!roleIds?.length) return undefined;
+  if (roleIds.includes(GroupId.TalentEmployerOrAgency)) return "Employer";
+  if (roleIds.includes(GroupId.Talent)) return "Talent";
+  return undefined;
+}
 
 const FLAG_REASONS: { value: FlagReason; label: string }[] = [
   { value: "FINANCIAL_SCAM", label: "Scam" },
@@ -40,7 +49,7 @@ export function MemberSearchScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
-  const [gender, setGender] = useState("");
+  const [gender, setGender] = useState<GenderFilterValue>("all");
   const [isAvailable, setIsAvailable] = useState<"all" | "yes" | "no">("all");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [tags, setTags] = useState<TagOption[]>([]);
@@ -83,7 +92,7 @@ export function MemberSearchScreen({ navigation }: Props) {
       const result = await searchMembers(accessToken, {
         city: city || undefined,
         country: country || undefined,
-        gender: gender || undefined,
+        gender: gender === "all" ? undefined : gender,
         isAvailable:
           isAvailable === "all" ? undefined : isAvailable === "yes" ? "true" : "false",
         groupId,
@@ -123,7 +132,12 @@ export function MemberSearchScreen({ navigation }: Props) {
         <SectionTitle title="Filters" />
         <LabeledInput label="City" value={city} onChangeText={setCity} placeholder="Mumbai" />
         <LabeledInput label="Country" value={country} onChangeText={setCountry} placeholder="India" />
-        <LabeledInput label="Gender" value={gender} onChangeText={setGender} placeholder="Any" />
+        <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 6 }}>Gender</Text>
+        <SegmentedControl
+          value={gender}
+          onChange={setGender}
+          options={GENDER_FILTER_OPTIONS}
+        />
         <SegmentedControl
           value={roleFilter}
           onChange={setRoleFilter}
@@ -221,6 +235,7 @@ export function MemberSearchScreen({ navigation }: Props) {
             <ListCard
               title={card.title}
               subtitle={card.subtitle || "No location"}
+              roleBadge={memberRoleLabel(card.roleIds)}
               badge={card.isAvailable ? "Looking" : undefined}
               meta={[
                 `★ ${String(card.rating ?? "—")}`,

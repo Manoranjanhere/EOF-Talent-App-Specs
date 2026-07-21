@@ -11,10 +11,10 @@ import { GroupId } from "@eof/shared";
 import { AlbumGridTile } from "../../components/album-grid-tile";
 import { ImageLightbox } from "../../components/image-lightbox";
 import { ProfileHero } from "../../components/profile-hero";
+import { ProfileSocialLinks, profileLinksFromData } from "../../components/profile-social-links";
 import {
   Card,
   EmptyState,
-  LabeledInput,
   PrimaryButton,
   ScreenLayout,
   SecondaryButton,
@@ -31,13 +31,15 @@ import type { DiscoverStackParamList } from "../../navigation/types";
 import type { AdminReportsStackParamList } from "../../navigation/types";
 import type { AdminUsersStackParamList } from "../../navigation/types";
 import type { PostJobStackParamList } from "../../navigation/types";
+import type { ChatStackParamList } from "../../navigation/types";
 import type { MemberFlowParamList } from "../../navigation/types";
 
 type Props =
   | NativeStackScreenProps<DiscoverStackParamList, "MemberProfile">
   | NativeStackScreenProps<AdminReportsStackParamList, "MemberProfile">
   | NativeStackScreenProps<AdminUsersStackParamList, "MemberProfile">
-  | NativeStackScreenProps<PostJobStackParamList, "MemberProfile">;
+  | NativeStackScreenProps<PostJobStackParamList, "MemberProfile">
+  | NativeStackScreenProps<ChatStackParamList, "MemberProfile">;
 
 type MemberFlowNavigation = NativeStackNavigationProp<MemberFlowParamList>;
 
@@ -61,7 +63,6 @@ export function MemberProfileScreen({ route, navigation }: Props) {
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
-  const [ratingComment, setRatingComment] = useState("");
   const [ratingBusy, setRatingBusy] = useState(false);
   const [messagingBusy, setMessagingBusy] = useState(false);
 
@@ -95,8 +96,7 @@ export function MemberProfileScreen({ route, navigation }: Props) {
     try {
       setRatingBusy(true);
       const updated = (await rateTalent(accessToken, userId, {
-        ratingValue: selectedRating,
-        comments: ratingComment.trim() || undefined
+        ratingValue: selectedRating
       })) as any;
       setProfile((prev: any) =>
         prev
@@ -143,7 +143,9 @@ export function MemberProfileScreen({ route, navigation }: Props) {
         params: {
           threadId: thread.id,
           recipientName: profile?.fullName || "Chat",
-          recipientUserId: userId
+          recipientUserId: userId,
+          recipientPhotoUrl: avatarUri,
+          recipientPhotoObjectKey: avatarKey
         }
       });
     } catch (error) {
@@ -208,6 +210,8 @@ export function MemberProfileScreen({ route, navigation }: Props) {
         bio={profile.miniBio}
       />
 
+      <ProfileSocialLinks links={profileLinksFromData(profile)} />
+
       {isEmployer && !isOrg ? (
         <Card>
           <SectionTitle title="Rate this talent" />
@@ -220,13 +224,6 @@ export function MemberProfileScreen({ route, navigation }: Props) {
               Your rating: {selectedRating}/5
             </Text>
           ) : null}
-          <LabeledInput
-            label="Comment (optional)"
-            value={ratingComment}
-            onChangeText={setRatingComment}
-            placeholder="Notes on skills, professionalism…"
-            multiline
-          />
           <PrimaryButton
             title={profile.myRating ? "Update rating" : "Submit rating"}
             onPress={onSubmitRating}

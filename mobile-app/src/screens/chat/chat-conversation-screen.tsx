@@ -14,6 +14,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronBackIcon, SendIcon } from "../../components/icons";
+import { ChatUserAvatar } from "../../components/chat-user-avatar";
 import {
   blockUser,
   getBlockStatus,
@@ -26,6 +27,7 @@ import type { ChatRealtimeMessage, ThreadSeenEvent } from "../../services/chat-s
 import { useAuth } from "../../state/auth-context";
 import { useChatSocket, useChatThreadRealtime } from "../../state/chat-socket-context";
 import { useChatUnread } from "../../state/chat-unread-context";
+import { getProfile } from "../../services/profile.service";
 import { useTheme } from "../../theme/theme-context";
 import type { ChatStackParamList } from "../../navigation/types";
 
@@ -101,7 +103,13 @@ function MessageBubble({
 }
 
 export function ChatConversationScreen({ route, navigation }: Props) {
-  const { threadId, recipientName, recipientUserId } = route.params;
+  const {
+    threadId,
+    recipientName,
+    recipientUserId,
+    recipientPhotoUrl: initialPhotoUrl,
+    recipientPhotoObjectKey: initialPhotoKey
+  } = route.params;
   const { accessToken, user } = useAuth();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -114,6 +122,31 @@ export function ChatConversationScreen({ route, navigation }: Props) {
   const [sending, setSending] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [recipientPhotoUrl, setRecipientPhotoUrl] = useState<string | null | undefined>(
+    initialPhotoUrl
+  );
+  const [recipientPhotoObjectKey, setRecipientPhotoObjectKey] = useState<string | null | undefined>(
+    initialPhotoKey
+  );
+
+  const openProfile = useCallback(() => {
+    if (!recipientUserId) return;
+    navigation.navigate("MemberProfile", { userId: recipientUserId });
+  }, [navigation, recipientUserId]);
+
+  useEffect(() => {
+    if (!accessToken || !recipientUserId) return;
+    void getProfile(recipientUserId, accessToken)
+      .then((profile) => {
+        const p = profile as {
+          profilePhotoUrl?: string | null;
+          profilePhotoObjectKey?: string | null;
+        };
+        setRecipientPhotoUrl(p.profilePhotoUrl ?? null);
+        setRecipientPhotoObjectKey(p.profilePhotoObjectKey ?? null);
+      })
+      .catch(() => undefined);
+  }, [accessToken, recipientUserId]);
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -242,30 +275,27 @@ export function ChatConversationScreen({ route, navigation }: Props) {
           <ChevronBackIcon color={colors.text} size={26} />
         </Pressable>
 
-        <View
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            backgroundColor: colors.primarySoft,
-            alignItems: "center",
-            justifyContent: "center",
-            marginRight: 10
-          }}
+        <Pressable
+          onPress={openProfile}
+          disabled={!recipientUserId}
+          style={{ flexDirection: "row", alignItems: "center", flex: 1, marginRight: 8 }}
         >
-          <Text style={{ color: colors.primary, fontWeight: "800", fontSize: 16 }}>
-            {(recipientName || "?").slice(0, 1).toUpperCase()}
-          </Text>
-        </View>
+          <ChatUserAvatar
+            name={recipientName || "Chat"}
+            uri={recipientPhotoUrl}
+            cacheKey={recipientPhotoObjectKey}
+            size={36}
+          />
 
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700" }} numberOfLines={1}>
-            {recipientName || "Chat"}
-          </Text>
-          <Text style={{ color: colors.muted, fontSize: 12 }}>
-            {socketConnected ? "Active now" : "Connecting…"}
-          </Text>
-        </View>
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700" }} numberOfLines={1}>
+              {recipientName || "Chat"}
+            </Text>
+            <Text style={{ color: colors.muted, fontSize: 12 }}>
+              {socketConnected ? "Active now" : "Connecting…"}
+            </Text>
+          </View>
+        </Pressable>
 
         {recipientUserId ? (
           <Pressable onPress={() => setMenuOpen((v) => !v)} hitSlop={12} style={{ padding: 8 }}>
@@ -325,23 +355,18 @@ export function ChatConversationScreen({ route, navigation }: Props) {
             <Text style={{ color: colors.muted, textAlign: "center" }}>Loading…</Text>
           ) : messages.length === 0 ? (
             <View style={{ alignItems: "center", gap: 8 }}>
-              <View
-                style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: 36,
-                  backgroundColor: colors.primarySoft,
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-              >
-                <Text style={{ fontSize: 28, color: colors.primary }}>
-                  {(recipientName || "?").slice(0, 1).toUpperCase()}
+              <ChatUserAvatar
+                name={recipientName || "Chat"}
+                uri={recipientPhotoUrl}
+                cacheKey={recipientPhotoObjectKey}
+                size={72}
+                onPress={recipientUserId ? openProfile : undefined}
+              />
+              <Pressable onPress={openProfile} disabled={!recipientUserId}>
+                <Text style={{ color: colors.text, fontWeight: "700", fontSize: 16 }}>
+                  {recipientName}
                 </Text>
-              </View>
-              <Text style={{ color: colors.text, fontWeight: "700", fontSize: 16 }}>
-                {recipientName}
-              </Text>
+              </Pressable>
               <Text style={{ color: colors.muted, fontSize: 13 }}>Say hello 👋</Text>
             </View>
           ) : (

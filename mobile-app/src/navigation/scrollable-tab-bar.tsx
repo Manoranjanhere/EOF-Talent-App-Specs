@@ -72,7 +72,8 @@ export function ScrollableTabBar({ state, descriptors, navigation }: BottomTabBa
                   backgroundColor: colors.primarySoft,
                   borderRadius: 16,
                   borderWidth: 1,
-                  borderColor: colors.border
+                  borderColor: colors.border,
+                  overflow: "hidden"
                 }
               ]}
             >
@@ -106,7 +107,8 @@ export function ScrollableTabBar({ state, descriptors, navigation }: BottomTabBa
                         justifyContent: "center",
                         paddingHorizontal: 4,
                         borderWidth: 2,
-                        borderColor: colors.card
+                        borderColor: colors.card,
+                        overflow: "hidden"
                       }}
                     >
                       <Text style={{ color: "#fff", fontSize: 10, fontWeight: "800" }}>

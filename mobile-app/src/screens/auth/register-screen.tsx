@@ -13,6 +13,8 @@ import {
   SegmentedControl
 } from "../../components/ui";
 import { ThemeToggleButton } from "../../components/theme-toggle-button";
+import type { GenderValue } from "../../constants/gender";
+import { GENDER_OPTIONS } from "../../constants/gender";
 import { registerUser, sendRegistrationOtp } from "../../services/auth.service";
 import {
   clearFirebaseOtpSession,
@@ -59,7 +61,7 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoMime, setPhotoMime] = useState("image/jpeg");
   const [age, setAge] = useState("");
-  const [gender, setGender] = useState("");
+  const [gender, setGender] = useState<GenderValue>("Male");
   const [heightCm, setHeightCm] = useState("");
   const [weightKg, setWeightKg] = useState("");
   const [city, setCity] = useState("");
@@ -211,8 +213,8 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
         Alert.alert("Missing age", "Enter your age.");
         return false;
       }
-      if (!gender.trim()) {
-        Alert.alert("Missing gender", "Enter your gender.");
+      if (!gender) {
+        Alert.alert("Select gender", "Choose Male or Female.");
         return false;
       }
       if (!heightCm.trim() || !weightKg.trim()) {
@@ -312,7 +314,7 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
         await updateTalentProfile(token, {
           fullName: fullName.trim(),
           age: Number(age),
-          gender: gender.trim(),
+          gender,
           heightCm: Number(heightCm),
           weightKg: Number(weightKg),
           city: city.trim(),
@@ -404,11 +406,11 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
           placeholder="25"
           keyboardType="number-pad"
         />
-        <LabeledInput
-          label="Gender"
+        <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 6 }}>Gender</Text>
+        <SegmentedControl
           value={gender}
-          onChangeText={setGender}
-          placeholder="Female / Male / Other"
+          onChange={(value) => setGender(value as GenderValue)}
+          options={GENDER_OPTIONS}
         />
         <LabeledInput
           label="Height (cm)"

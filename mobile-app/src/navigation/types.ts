@@ -15,8 +15,10 @@ export type ChatStackParamList = {
     threadId: string;
     recipientName?: string;
     recipientUserId?: string;
+    recipientPhotoUrl?: string | null;
+    recipientPhotoObjectKey?: string | null;
   };
-};
+} & MemberFlowParamList;
 
 export type AlbumsStackParamList = {
   AlbumsList: undefined;

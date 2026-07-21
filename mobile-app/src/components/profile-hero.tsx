@@ -48,7 +48,8 @@ export function ProfileHero({
           borderWidth: 2,
           borderColor: colors.border,
           alignItems: "center",
-          justifyContent: "center"
+          justifyContent: "center",
+          overflow: "hidden"
         }}
       >
         <View
@@ -99,7 +100,8 @@ export function ProfileHero({
               borderRadius: 999,
               borderWidth: 1,
               borderColor: colors.border,
-              maxWidth: "100%"
+              maxWidth: "100%",
+              overflow: "hidden"
             }}
           >
             <Text

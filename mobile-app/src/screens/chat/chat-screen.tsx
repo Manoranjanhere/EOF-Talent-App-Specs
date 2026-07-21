@@ -11,6 +11,7 @@ import {
   SecondaryButton,
   SectionTitle
 } from "../../components/ui";
+import { ChatUserAvatar } from "../../components/chat-user-avatar";
 import { getMessagingStatus, listThreads } from "../../services/chat.service";
 import type { ChatPushNotification } from "../../services/chat-socket";
 import {
@@ -28,7 +29,12 @@ type Props = NativeStackScreenProps<ChatStackParamList, "ChatInbox">;
 
 type ThreadRow = {
   id: string;
-  otherUser?: { id: string; fullName: string };
+  otherUser?: {
+    id: string;
+    fullName: string;
+    profilePhotoUrl?: string | null;
+    profilePhotoObjectKey?: string | null;
+  };
   lastMessage?: { messageText?: string; createdAt?: string; senderUserId?: string };
   unreadCount?: number;
   updatedAt?: string;
@@ -73,23 +79,14 @@ function InboxRow({
         opacity: pressed ? 0.85 : 1
       })}
     >
-      <View
-        style={{
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: colors.primarySoft,
-          alignItems: "center",
-          justifyContent: "center",
-          marginRight: 12
-        }}
-      >
-        <Text style={{ color: colors.primary, fontSize: 20, fontWeight: "800" }}>
-          {name.slice(0, 1).toUpperCase()}
-        </Text>
-      </View>
+      <ChatUserAvatar
+        name={name}
+        uri={thread.otherUser?.profilePhotoUrl}
+        cacheKey={thread.otherUser?.profilePhotoObjectKey}
+        size={56}
+      />
 
-      <View style={{ flex: 1, paddingRight: 8 }}>
+      <View style={{ flex: 1, paddingRight: 8, marginLeft: 12 }}>
         <Text
           style={{
             color: colors.text,
@@ -231,7 +228,9 @@ export function ChatScreen({ navigation }: Props) {
     navigation.navigate("ChatConversation", {
       threadId: thread.id,
       recipientName: thread.otherUser?.fullName || "Chat",
-      recipientUserId: thread.otherUser?.id
+      recipientUserId: thread.otherUser?.id,
+      recipientPhotoUrl: thread.otherUser?.profilePhotoUrl,
+      recipientPhotoObjectKey: thread.otherUser?.profilePhotoObjectKey
     });
   };
 

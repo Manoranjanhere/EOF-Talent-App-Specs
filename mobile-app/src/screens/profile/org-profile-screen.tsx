@@ -169,10 +169,25 @@ export function OrgProfileScreen({ navigation }: { navigation?: any }) {
       <Card>
         <SectionTitle title="Profile photo (required)" />
         {photoUri ? (
-          <Image
-            source={{ uri: photoUri }}
-            style={{ width: 120, height: 120, borderRadius: 60, marginBottom: 8 }}
-          />
+          <View
+            style={{
+              width: 128,
+              height: 128,
+              borderRadius: 64,
+              borderWidth: 2,
+              borderColor: colors.border,
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 8,
+              overflow: "hidden",
+              backgroundColor: colors.primarySoft
+            }}
+          >
+            <Image
+              source={{ uri: photoUri }}
+              style={{ width: 120, height: 120, borderRadius: 60 }}
+            />
+          </View>
         ) : (
           <Text style={{ color: colors.muted, marginBottom: 8 }}>
             Add a company logo or contact photo.

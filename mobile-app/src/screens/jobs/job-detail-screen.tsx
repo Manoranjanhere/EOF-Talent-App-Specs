@@ -15,6 +15,7 @@ import { getMyJob } from "../../services/jobs.service";
 import { startDirectThread } from "../../services/chat.service";
 import { useAuth } from "../../state/auth-context";
 import { useTheme } from "../../theme/theme-context";
+import { formatGenderLabel } from "../../constants/gender";
 import type { PostJobStackParamList } from "../../navigation/types";
 
 type Props = NativeStackScreenProps<PostJobStackParamList, "JobDetail">;
@@ -136,7 +137,7 @@ export function JobDetailScreen({ route, navigation }: Props) {
           {[job.city, job.country].filter(Boolean).join(", ") || "Location N/A"}
         </Text>
         <Text style={{ color: colors.muted, fontSize: 13 }}>
-          {formatPay(job.payRangeMin, job.payRangeMax)} · Gender: {job.gender || "Any"}
+          {formatPay(job.payRangeMin, job.payRangeMax)} · Gender: {formatGenderLabel(job.gender)}
         </Text>
         <Text style={{ color: colors.muted, fontSize: 13 }}>
           Valid till {new Date(job.validTill).toLocaleDateString()}

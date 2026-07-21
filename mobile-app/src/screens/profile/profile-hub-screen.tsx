@@ -10,6 +10,7 @@ import { GroupId } from "@eof/shared";
 import { AlbumGridTile } from "../../components/album-grid-tile";
 import { ImageLightbox } from "../../components/image-lightbox";
 import { ProfileHero } from "../../components/profile-hero";
+import { ProfileSocialLinks, profileLinksFromData } from "../../components/profile-social-links";
 import {
   EmptyState,
   PrimaryButton,
@@ -113,7 +114,9 @@ export function ProfileHubScreen({ navigation }: { navigation: any }) {
         bio={profile?.miniBio}
       />
 
-      <View style={{ flexDirection: "row", gap: 10, marginBottom: 16 }}>
+      <ProfileSocialLinks links={profileLinksFromData(profile ?? {})} />
+
+      <View style={{ flexDirection: "row", gap: 10, marginBottom: 16, marginTop: 12 }}>
         <View style={{ flex: 1 }}>
           <PrimaryButton
             title={isEmployer && !isTalent ? "Edit company" : "Edit profile"}

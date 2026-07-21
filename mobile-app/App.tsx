@@ -40,13 +40,15 @@ function AppShell() {
   const navTheme = useMemo(
     () => ({
       ...(isDark ? DarkTheme : DefaultTheme),
+      dark: isDark,
       colors: {
         ...(isDark ? DarkTheme.colors : DefaultTheme.colors),
         background: colors.bg,
         card: colors.card,
         border: colors.border,
         text: colors.text,
-        primary: colors.primary
+        primary: colors.primary,
+        notification: colors.primary
       }
     }),
     [colors, isDark]
