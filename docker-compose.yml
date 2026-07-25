@@ -1,0 +1,54 @@
+# EOF Talent — EC2: API + Postgres (Docker Compose)
+# Run from repo root after: git pull && cp deploy/ec2.env.example .env
+#
+# EC2 instance: i-088f3d250343e2527
+# Public IP:    13.203.201.155
+# Private IP:   172.31.3.87
+#
+# Phone APK URL: http://13.203.201.155:3000/api
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: eof-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-eof}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-eof_talent}
+    volumes:
+      - eof_pg_data:/var/lib/postgresql/data
+    # Postgres stays on Docker network only (not exposed to the internet)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eof} -d ${POSTGRES_DB:-eof_talent}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eof-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      PORT: "3000"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-eof}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-eof_talent}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      UPLOAD_DIR: ./uploads
+      FIREBASE_SERVICE_ACCOUNT_PATH: ${FIREBASE_SERVICE_ACCOUNT_PATH:-./firebase-service-account.json}
+    volumes:
+      - eof_uploads:/app/backend/uploads
+      # Uncomment after you scp Firebase JSON onto the server:
+      # - ./backend/firebase-service-account.json:/app/backend/firebase-service-account.json:ro
+
+volumes:
+  eof_pg_data:
+  eof_uploads:

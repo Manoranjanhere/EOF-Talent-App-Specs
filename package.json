@@ -20,7 +20,10 @@
     "prisma:migrate": "npm run prisma:migrate --workspace backend",
     "prisma:migrate:dev": "npm run prisma:migrate:dev --workspace backend",
     "prisma:seed": "npm run prisma:seed --workspace backend",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f api"
   },
   "engines": {
     "node": ">=20.11.0"
@@ -28,6 +31,7 @@
   "dependencies": {
     "expo": "~51.0.28",
     "react": "18.2.0",
-    "react-native": "0.74.5"
+    "react-native": "0.74.5",
+    "react-native-screens": "^4.26.2"
   }
 }
