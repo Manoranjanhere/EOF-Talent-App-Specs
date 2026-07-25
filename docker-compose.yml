@@ -1,11 +1,13 @@
-# EOF Talent — EC2: API + Postgres (Docker Compose)
-# Run from repo root after: git pull && cp deploy/ec2.env.example .env
+# EOF Talent — EC2: API + Postgres on the same instance (Docker Compose)
+# Postgres is ONLY reachable inside Docker (not exposed to the internet).
 #
-# EC2 instance: i-088f3d250343e2527
-# Public IP:    13.203.201.155
-# Private IP:   172.31.3.87
+# Setup once:
+#   cp deploy/ec2.env.example .env
+#   nano .env   # set POSTGRES_PASSWORD + JWT secrets
+#   docker compose up -d --build
 #
-# Phone APK URL: http://13.203.201.155:3000/api
+# EC2: i-088f3d250343e2527 | Public: 13.203.201.155
+# Phone APK: http://13.203.201.155:3000/api
 
 services:
   postgres:
@@ -14,11 +16,11 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-eof}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eof_change_me}
       POSTGRES_DB: ${POSTGRES_DB:-eof_talent}
     volumes:
       - eof_pg_data:/var/lib/postgresql/data
-    # Postgres stays on Docker network only (not exposed to the internet)
+    # No ports: section → Postgres stays private on the Docker network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eof} -d ${POSTGRES_DB:-eof_talent}"]
       interval: 5s
@@ -37,13 +39,21 @@ services:
     ports:
       - "3000:3000"
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       PORT: "3000"
-      DATABASE_URL: postgresql://${POSTGRES_USER:-eof}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-eof_talent}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-eof}:${POSTGRES_PASSWORD:-eof_change_me}@postgres:5432/${POSTGRES_DB:-eof_talent}
       STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
       UPLOAD_DIR: ./uploads
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-replace-me-access-secret-change-in-prod}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-replace-me-refresh-secret-change-in-prod}
+      JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-15m}
+      JWT_REFRESH_EXPIRES: ${JWT_REFRESH_EXPIRES:-30d}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      OTP_TEST_BYPASS: ${OTP_TEST_BYPASS:-true}
       FIREBASE_SERVICE_ACCOUNT_PATH: ${FIREBASE_SERVICE_ACCOUNT_PATH:-./firebase-service-account.json}
+      SEED_ON_START: ${SEED_ON_START:-false}
     volumes:
       - eof_uploads:/app/backend/uploads
       # Uncomment after you scp Firebase JSON onto the server:
