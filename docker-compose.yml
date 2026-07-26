@@ -58,8 +58,8 @@ services:
       SEED_ON_START: ${SEED_ON_START:-false}
     volumes:
       - eof_uploads:/app/backend/uploads
-      # Uncomment after you scp Firebase JSON onto the server:
-      # - ./backend/firebase-service-account.json:/app/backend/firebase-service-account.json:ro
+      # Firebase Admin credentials (scp this file to the EC2 repo before starting)
+      - ./backend/firebase-service-account.json:/app/backend/firebase-service-account.json:ro
 
 volumes:
   eof_pg_data:
