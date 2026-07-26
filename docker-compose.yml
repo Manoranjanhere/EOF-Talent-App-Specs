@@ -20,7 +20,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-eof_talent}
     volumes:
       - eof_pg_data:/var/lib/postgresql/data
-    # No ports: section → Postgres stays private on the Docker network
+    # Only on EC2 localhost (for SSH tunnel → pgAdmin). NOT open to the internet.
+    ports:
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eof} -d ${POSTGRES_DB:-eof_talent}"]
       interval: 5s
