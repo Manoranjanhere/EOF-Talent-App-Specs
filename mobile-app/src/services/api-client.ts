@@ -6,7 +6,18 @@ type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   token?: string | null;
   body?: unknown;
+  /** Internal: avoid refresh loops */
+  _retried?: boolean;
 };
+
+type RefreshHandler = () => Promise<string | null>;
+
+let refreshHandler: RefreshHandler | null = null;
+
+/** Register a callback that returns a fresh access token (or null to force logout). */
+export function setAccessTokenRefreshHandler(handler: RefreshHandler | null) {
+  refreshHandler = handler;
+}
 
 function formatApiError(status: number, body: string): string {
   try {
@@ -64,6 +75,13 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     );
   } finally {
     clearTimeout(timeoutId);
+  }
+
+  if (response.status === 401 && options.token && refreshHandler && !options._retried) {
+    const nextToken = await refreshHandler();
+    if (nextToken) {
+      return apiRequest<T>(path, { ...options, token: nextToken, _retried: true });
+    }
   }
 
   if (!response.ok) {

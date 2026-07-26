@@ -1,5 +1,6 @@
 import { apiRequest } from "./api-client";
 import { GroupId } from "@eof/shared";
+import { purchasePlanViaPlayStore } from "./play-billing.service";
 
 export type SubscriptionPlan = {
   id: string;
@@ -30,12 +31,38 @@ export function listMySubscriptions(token: string) {
 
 export function purchaseSubscription(
   token: string,
-  payload: { planId: string; purchaseType: "PAID" | "FREE" | "COMPENSATORY"; purchaseRef?: string }
+  payload: {
+    planId: string;
+    purchaseType: "PAID" | "FREE" | "COMPENSATORY";
+    purchaseRef?: string;
+    googlePlayPurchaseToken?: string;
+    googlePlayProductId?: string;
+    googlePlayPackageName?: string;
+  }
 ) {
   return apiRequest("/subscriptions/purchase", {
     method: "POST",
     token,
     body: payload
+  });
+}
+
+/** Runs Google Play Billing, then registers the entitlement with the API. */
+export async function purchasePlanWithPlayStore(
+  token: string,
+  plan: Pick<SubscriptionPlan, "id" | "code" | "isJobPostingPlan">
+) {
+  const play = await purchasePlanViaPlayStore({
+    planCode: plan.code,
+    isJobPostingPlan: plan.isJobPostingPlan
+  });
+  return purchaseSubscription(token, {
+    planId: plan.id,
+    purchaseType: "PAID",
+    purchaseRef: play.orderId,
+    googlePlayPurchaseToken: play.purchaseToken,
+    googlePlayProductId: play.productId,
+    googlePlayPackageName: play.packageName
   });
 }
 

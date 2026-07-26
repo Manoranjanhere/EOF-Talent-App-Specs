@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text } from "react-native";
 import {
   Card,
   LabeledInput,
+  LinkButton,
   PrimaryButton,
   ScreenLayout,
   SectionTitle
@@ -10,6 +11,8 @@ import {
 import { submitFeedback } from "../../services/feedback.service";
 import { useAuth } from "../../state/auth-context";
 import { useTheme } from "../../theme/theme-context";
+import { PrivacyPolicyScreen } from "../legal/privacy-policy-screen";
+import { TermsOfServiceScreen } from "../legal/terms-of-service-screen";
 
 const FAQ_ITEMS = [
   {
@@ -22,11 +25,15 @@ const FAQ_ITEMS = [
   },
   {
     q: "How much does messaging cost?",
-    a: "Talent can message for free. Employers & agencies: ₹300/month — subscribe from the Chat tab before sending messages."
+    a: "Talent can message for free. Employers & agencies: ₹300/month via Google Play — subscribe from the Chat tab before sending messages."
   },
   {
     q: "How do I post a job?",
-    a: "Employers: Post job tab → buy a ₹300 slot → fill title, skills, pay range, and publish. Listings stay live for 90 days."
+    a: "Employers: Post job tab → buy a ₹300 slot in Google Play → fill title, skills, pay range, and publish. Listings stay live for 90 days."
+  },
+  {
+    q: "Where are Privacy Policy and Terms?",
+    a: "Use the Privacy Policy and Terms links below on this Help tab, or on Sign-in / Register."
   },
   {
     q: "How do employers find talent?",
@@ -45,6 +52,14 @@ export function HelpFeedbackScreen() {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [legalView, setLegalView] = useState<"privacy" | "terms" | null>(null);
+
+  if (legalView === "privacy") {
+    return <PrivacyPolicyScreen navigation={{ goBack: () => setLegalView(null) }} />;
+  }
+  if (legalView === "terms") {
+    return <TermsOfServiceScreen navigation={{ goBack: () => setLegalView(null) }} />;
+  }
 
   const onSubmit = async () => {
     if (!accessToken) {
@@ -96,6 +111,12 @@ export function HelpFeedbackScreen() {
             </Pressable>
           );
         })}
+      </Card>
+
+      <Card>
+        <SectionTitle title="Legal" />
+        <LinkButton title="Privacy Policy" onPress={() => setLegalView("privacy")} />
+        <LinkButton title="Terms of Service" onPress={() => setLegalView("terms")} />
       </Card>
 
       <Card>

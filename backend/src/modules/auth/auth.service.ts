@@ -391,6 +391,30 @@ export class AuthService {
     }
   }
 
+  async refresh(refreshToken: string) {
+    let payload: { sub?: string };
+    try {
+      payload = this.jwtService.verify<{ sub: string }>(refreshToken, {
+        secret: this.configService.get<string>("JWT_REFRESH_SECRET")
+      });
+    } catch {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+    if (!payload?.sub) {
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+
+    const user = await this.prisma.userAccount.findUnique({
+      where: { id: payload.sub },
+      include: { roles: true }
+    });
+    if (!user) {
+      throw new UnauthorizedException("User not found");
+    }
+    this.assertLoginAllowed(user);
+    return this.issueTokens(user);
+  }
+
   private issueTokens(user: UserAccount & { roles: { groupId: number }[] }) {
     const roles = user.roles.map((role) => role.groupId);
     const payload = { sub: user.id, roles };

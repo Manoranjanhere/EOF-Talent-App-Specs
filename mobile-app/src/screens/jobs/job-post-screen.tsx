@@ -19,7 +19,7 @@ import {
   countAvailableJobSlots,
   listMySubscriptions,
   listSubscriptionPlans,
-  purchaseSubscription
+  purchasePlanWithPlayStore
 } from "../../services/subscriptions.service";
 import { useAuth } from "../../state/auth-context";
 import { useTheme } from "../../theme/theme-context";
@@ -61,6 +61,7 @@ export function JobPostScreen({ navigation }: Props) {
   const [primaryTagIds, setPrimaryTagIds] = useState<string[]>([]);
   const [secondaryTagIds, setSecondaryTagIds] = useState<string[]>([]);
   const [jobPlanId, setJobPlanId] = useState<string | null>(null);
+  const [jobPlanCode, setJobPlanCode] = useState("JOB_POST_300_90");
   const [availableSlots, setAvailableSlots] = useState(0);
   const [myJobs, setMyJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,6 +79,7 @@ export function JobPostScreen({ navigation }: Props) {
       setTags(tagList);
       const jobPlan = plans.find((p) => p.isJobPostingPlan);
       setJobPlanId(jobPlan?.id ?? null);
+      setJobPlanCode(jobPlan?.code ?? "JOB_POST_300_90");
       setAvailableSlots(countAvailableJobSlots(subs));
       setMyJobs(Array.isArray(jobs) ? jobs : []);
     } catch (error) {
@@ -98,12 +100,15 @@ export function JobPostScreen({ navigation }: Props) {
     }
     try {
       setPurchasing(true);
-      await purchaseSubscription(accessToken, {
-        planId: jobPlanId,
-        purchaseType: "PAID",
-        purchaseRef: `mobile-${Date.now()}`
+      await purchasePlanWithPlayStore(accessToken, {
+        id: jobPlanId,
+        code: jobPlanCode || "JOB_POST_300_90",
+        isJobPostingPlan: true
       });
-      Alert.alert("Slot purchased", "₹300 job slot added. You can publish one listing (90-day validity).");
+      Alert.alert(
+        "Slot purchased",
+        "Google Play payment confirmed. You can publish one listing (90-day validity)."
+      );
       await loadMeta();
     } catch (error) {
       Alert.alert("Purchase failed", (error as Error).message);

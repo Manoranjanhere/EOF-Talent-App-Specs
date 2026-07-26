@@ -92,6 +92,10 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
 
   const [sendingOtp, setSendingOtp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  /** Set after OTP succeeds on step 1 — reused on final register (Firebase confirm is one-shot). */
+  const [verifiedFirebaseIdToken, setVerifiedFirebaseIdToken] = useState<string | null>(null);
+  const [phoneVerified, setPhoneVerified] = useState(false);
   const auth = useAuth();
   const { colors } = useTheme();
   const isEmployer = groupId === GroupId.TalentEmployerOrAgency;
@@ -168,6 +172,10 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
       Alert.alert("Missing email", "Please enter your email address.");
       return false;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      Alert.alert("Invalid email", "Enter a valid email address.");
+      return false;
+    }
     if (!mobileNumber.trim()) {
       Alert.alert("Missing mobile", "Please enter your mobile number.");
       return false;
@@ -187,9 +195,37 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
     return true;
   };
 
-  const onContinue = () => {
+  const onContinue = async () => {
     if (!validateAccountStep()) return;
-    setStep("details");
+    if (phoneVerified && (verifiedFirebaseIdToken || !usingFirebase)) {
+      setStep("details");
+      return;
+    }
+
+    try {
+      setVerifyingOtp(true);
+      const firebaseOn = useFirebasePhoneAuth();
+      setUsingFirebase(firebaseOn);
+
+      if (firebaseOn) {
+        const confirmed = await confirmFirebaseOtp(otpCode.trim());
+        setVerifiedFirebaseIdToken(confirmed.firebaseIdToken);
+        setPhoneVerified(true);
+      } else {
+        // Dev bypass: OTP must still be present; API validates the code at register.
+        if (!otpSent || otpCode.trim().length < 4) {
+          Alert.alert("Verify phone", "Send and enter the OTP first.");
+          return;
+        }
+        setVerifiedFirebaseIdToken(null);
+        setPhoneVerified(true);
+      }
+      setStep("details");
+    } catch (error) {
+      Alert.alert("OTP verification failed", mapFirebaseAuthError(error));
+    } finally {
+      setVerifyingOtp(false);
+    }
   };
 
   const onPickPhoto = async () => {
@@ -285,27 +321,21 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
       Alert.alert("Missing contact email", "Enter contact email.");
       return false;
     }
-    if (!websiteUrl.trim()) {
-      Alert.alert("Missing website", "Enter company website.");
-      return false;
-    }
     return true;
   };
 
   const onFinish = async () => {
+    if (!phoneVerified) {
+      Alert.alert("Verify phone", "Go back and verify your phone OTP before creating the account.");
+      return;
+    }
     if (!validateDetailsStep()) return;
 
     try {
       setLoading(true);
       const e164 = toE164(mobileNumber.trim());
-      let firebaseIdToken: string | undefined;
-      let otpForApi: string | undefined = otpCode.trim();
-
-      if (usingFirebase) {
-        const confirmed = await confirmFirebaseOtp(otpCode.trim());
-        firebaseIdToken = confirmed.firebaseIdToken;
-        otpForApi = undefined;
-      }
+      const firebaseIdToken = verifiedFirebaseIdToken ?? undefined;
+      const otpForApi = firebaseIdToken ? undefined : otpCode.trim();
 
       const response = await registerUser({
         fullName: fullName.trim(),
@@ -352,7 +382,7 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
           contactPosition: contactPosition.trim(),
           contactNumber: contactNumber.trim(),
           contactEmail: contactEmail.trim(),
-          websiteUrl: websiteUrl.trim(),
+          websiteUrl: websiteUrl.trim() || undefined,
           instagramUrl: instagramUrl.trim() || undefined,
           facebookUrl: facebookUrl.trim() || undefined
         });
@@ -661,7 +691,7 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
           keyboardType="email-address"
         />
         <LabeledInput
-          label="Website"
+          label="Website (optional)"
           value={websiteUrl}
           onChangeText={setWebsiteUrl}
           placeholder="https://company.com"
@@ -695,10 +725,14 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
   return (
     <ScreenLayout
       title="Create account"
-      subtitle="Step 1 of 2 · Next: talent profile + skills, or company details"
+      subtitle="Step 1 of 2 · Verify phone OTP, then continue to profile details"
       headerRight={<ThemeToggleButton />}
       footer={
-        <LinkButton title="Already have an account? Sign in" onPress={() => navigation.goBack()} />
+        <>
+          <LinkButton title="Already have an account? Sign in" onPress={() => navigation.goBack()} />
+          <LinkButton title="Privacy Policy" onPress={() => navigation.navigate("PrivacyPolicy")} />
+          <LinkButton title="Terms of Service" onPress={() => navigation.navigate("TermsOfService")} />
+        </>
       }
     >
       <RoleSelector value={groupId} onChange={setGroupId} />
@@ -728,6 +762,8 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
           setOtpSent(false);
           setOtpCode("");
           setOtpHint(null);
+          setPhoneVerified(false);
+          setVerifiedFirebaseIdToken(null);
           clearFirebaseOtpSession();
         }}
         keyboardType="phone-pad"
@@ -745,7 +781,11 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
             label="Phone OTP"
             placeholder="Enter OTP from SMS"
             value={otpCode}
-            onChangeText={setOtpCode}
+            onChangeText={(value) => {
+              setOtpCode(value);
+              setPhoneVerified(false);
+              setVerifiedFirebaseIdToken(null);
+            }}
             keyboardType="number-pad"
           />
           <Text style={{ color: colors.muted, fontSize: 12 }}>
@@ -775,7 +815,18 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
         secureTextEntry
       />
 
-      <PrimaryButton title="Continue" onPress={onContinue} />
+      <PrimaryButton
+        title={
+          verifyingOtp
+            ? "Verifying OTP..."
+            : phoneVerified
+              ? "Continue"
+              : "Verify OTP & continue"
+        }
+        onPress={onContinue}
+        disabled={verifyingOtp}
+        loading={verifyingOtp}
+      />
     </ScreenLayout>
   );
 }

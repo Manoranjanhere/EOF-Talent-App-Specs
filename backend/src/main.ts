@@ -36,11 +36,11 @@ async function bootstrap() {
       : join(process.cwd(), configured)
     : join(process.cwd(), "uploads");
 
-  // Keep a local static mount as fallback for older `/api/media/files/...` URLs.
+  // Ensure upload dir exists. Files are served only via signed MediaFilesController
+  // (not an open static mount — that leaked private album keys).
   if (!existsSync(uploadDir)) {
     mkdirSync(uploadDir, { recursive: true });
   }
-  app.useStaticAssets(uploadDir, { prefix: "/api/media/files/" });
 
   const docsConfig = new DocumentBuilder()
     .setTitle("EOF Talent API")
@@ -58,9 +58,8 @@ async function bootstrap() {
     const bucket = process.env.S3_BUCKET || process.env.AWS_S3_BUCKET || "eof-talent-images";
     const region = process.env.S3_REGION || process.env.AWS_REGION || "us-east-1";
     console.log(`Media storage: S3 (bucket=${bucket}, region=${region})`);
-    console.log(`Local static fallback mount: ${uploadDir}`);
   } else {
-    console.log(`Media storage: local (${uploadDir})`);
+    console.log(`Media storage: local signed URLs (${uploadDir})`);
   }
 }
 

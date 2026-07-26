@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   Logger,
   OnModuleInit,
@@ -16,7 +17,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createWriteStream, existsSync, mkdirSync } from "fs";
 import { writeFile } from "fs/promises";
 import { dirname, isAbsolute, join } from "path";
-import { randomUUID } from "crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { pipeline } from "stream/promises";
 import { Readable } from "stream";
 
@@ -98,22 +99,60 @@ export class StorageService implements OnModuleInit {
     return join(this.uploadRoot, objectKey);
   }
 
-  /** Unauthenticated public-style URL (local only unless bucket is public). */
+  /** Unauthenticated public-style URL (local only unless bucket is public). Prefer getReadUrl. */
   publicUrl(objectKey: string): string {
     const key = objectKey.split("\\").join("/");
     if (this.driver === "s3") {
       return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${key}`;
     }
-    return `/api/media/files/${key}`;
+    return this.signLocalReadUrl(key, 43_200);
   }
 
   /** App-facing URL Image can load — signed GetObject when bucket is private. */
   private readonly readUrlCache = new Map<string, { url: string; expiresAtMs: number }>();
 
+  private mediaSigningSecret(): string {
+    return (
+      this.config.get<string>("MEDIA_SIGNING_SECRET") ||
+      this.config.get<string>("JWT_ACCESS_SECRET") ||
+      "dev-media-signing-secret"
+    );
+  }
+
+  /** Short-lived HMAC URL so `/api/media/files/...` cannot be scraped by key alone. */
+  signLocalReadUrl(objectKey: string, expiresInSeconds = 43_200): string {
+    const key = objectKey.split("\\").join("/").replace(/^\/+/, "");
+    const expires = Math.floor(Date.now() / 1000) + expiresInSeconds;
+    const sig = createHmac("sha256", this.mediaSigningSecret())
+      .update(`${key}:${expires}`)
+      .digest("base64url");
+    // Query-style key avoids Nest wildcard path quirks and encoding issues.
+    return `/api/media/asset?key=${encodeURIComponent(key)}&expires=${expires}&sig=${sig}`;
+  }
+
+  assertValidSignedRead(objectKey: string, expiresRaw?: string, sig?: string) {
+    const key = objectKey.split("\\").join("/").replace(/^\/+/, "");
+    const expires = Number(expiresRaw);
+    if (!sig || !Number.isFinite(expires)) {
+      throw new ForbiddenException("Signed media URL required");
+    }
+    if (expires < Math.floor(Date.now() / 1000)) {
+      throw new ForbiddenException("Signed media URL expired");
+    }
+    const expected = createHmac("sha256", this.mediaSigningSecret())
+      .update(`${key}:${expires}`)
+      .digest("base64url");
+    const a = Buffer.from(expected);
+    const b = Buffer.from(sig);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      throw new ForbiddenException("Invalid signed media URL");
+    }
+  }
+
   async getReadUrl(objectKey: string, expiresInSeconds = 43_200): Promise<string> {
     const key = objectKey.split("\\").join("/");
     if (this.driver === "local") {
-      return `/api/media/files/${key}`;
+      return this.signLocalReadUrl(key, expiresInSeconds);
     }
     if (!this.client) {
       throw new ServiceUnavailableException("S3 client is not configured");

@@ -595,7 +595,7 @@ export class ChatService {
     };
   }
 
-  private async assertThreadAccess(userId: string, threadId: string) {
+  async assertThreadAccess(userId: string, threadId: string) {
     const participant = await this.prisma.chatThreadParticipant.findFirst({
       where: {
         threadId,
@@ -606,5 +606,17 @@ export class ChatService {
     if (!participant) {
       throw new NotFoundException("Thread not found or access denied");
     }
+  }
+
+  async isThreadParticipant(userId: string, threadId: string): Promise<boolean> {
+    const participant = await this.prisma.chatThreadParticipant.findFirst({
+      where: {
+        threadId,
+        userId,
+        isActive: true
+      },
+      select: { id: true }
+    });
+    return Boolean(participant);
   }
 }

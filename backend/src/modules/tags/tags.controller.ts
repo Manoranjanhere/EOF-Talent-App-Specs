@@ -18,6 +18,14 @@ export class TagsController {
     return this.tagsService.listPublished();
   }
 
+  @Get("admin")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(GroupId.Admin, GroupId.TeamAdmin, GroupId.SuperAdmin)
+  listAll() {
+    return this.tagsService.listAll();
+  }
+
   @Post()
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)

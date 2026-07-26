@@ -6,6 +6,7 @@ import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { SendMobileOtpDto } from "./dto/send-mobile-otp.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { RefreshTokenDto } from "./dto/refresh-token.dto";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -26,6 +27,11 @@ export class AuthController {
     @Audit() audit: { ip: string; updatedBy: string }
   ) {
     return this.authService.login(dto, audit);
+  }
+
+  @Post("refresh")
+  refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refresh(dto.refreshToken);
   }
 
   @Post("register/mobile-otp/send")

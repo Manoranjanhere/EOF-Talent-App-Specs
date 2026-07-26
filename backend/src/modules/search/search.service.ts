@@ -1,7 +1,10 @@
 import { Injectable } from "@nestjs/common";
+import { GroupId } from "@eof/shared";
 import { PrismaService } from "../../database/prisma.service";
 import { MemberSearchQuery } from "./dto/member-search.query";
 import { JobSearchQuery } from "./dto/job-search.query";
+
+const ADMIN_GROUP_IDS = [GroupId.Admin, GroupId.TeamAdmin, GroupId.SuperAdmin];
 
 @Injectable()
 export class SearchService {
@@ -14,6 +17,16 @@ export class SearchService {
 
     const where = {
       isActive: true,
+      // Never list system / admin accounts in Discover
+      email: { not: "system-admin@eof.local" },
+      NOT: {
+        roles: {
+          some: {
+            groupId: { in: ADMIN_GROUP_IDS },
+            isActive: true
+          }
+        }
+      },
       city: query.city,
       country: query.country,
       gender: query.gender,

@@ -70,3 +70,10 @@ export function registerUser(payload: {
     body: payload
   });
 }
+
+export function refreshAccessToken(refreshToken: string) {
+  return apiRequest<LoginResponse>("/auth/refresh", {
+    method: "POST",
+    body: { refreshToken }
+  });
+}

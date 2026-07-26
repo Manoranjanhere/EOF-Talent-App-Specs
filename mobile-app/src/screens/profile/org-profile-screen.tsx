@@ -283,7 +283,7 @@ export function OrgProfileScreen({ navigation }: { navigation?: any }) {
       <Card>
         <SectionTitle title="Online presence" />
         <LabeledInput
-          label="Website"
+          label="Website (optional)"
           value={websiteUrl}
           onChangeText={setWebsiteUrl}
           placeholder="https://company.com"

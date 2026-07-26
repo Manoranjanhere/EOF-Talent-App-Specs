@@ -7,11 +7,16 @@ export function mediaUrl(pathOrKey?: string | null): string | null {
   if (pathOrKey.startsWith("http://") || pathOrKey.startsWith("https://")) {
     return pathOrKey;
   }
-  const key = pathOrKey.startsWith("/api/")
-    ? pathOrKey.replace(/^\/api/, "")
-    : pathOrKey.startsWith("/")
-      ? pathOrKey
-      : `/media/files/${pathOrKey}`;
+  // Already an API-relative path including query (signed local asset URLs).
+  if (pathOrKey.startsWith("/api/")) {
+    return `${getApiBaseUrl()}${pathOrKey.replace(/^\/api/, "")}`;
+  }
+  if (pathOrKey.startsWith("/media/")) {
+    return `${getApiBaseUrl()}${pathOrKey}`;
+  }
+  const key = pathOrKey.startsWith("/")
+    ? pathOrKey
+    : `/media/files/${pathOrKey}`;
   return `${getApiBaseUrl()}${key}`;
 }
 

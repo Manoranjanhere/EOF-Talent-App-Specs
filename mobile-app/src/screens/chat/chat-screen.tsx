@@ -17,7 +17,7 @@ import type { ChatPushNotification } from "../../services/chat-socket";
 import {
   listSubscriptionPlans,
   messagingPlanForRoles,
-  purchaseSubscription
+  purchasePlanWithPlayStore
 } from "../../services/subscriptions.service";
 import { useAuth } from "../../state/auth-context";
 import { useChatSocket } from "../../state/chat-socket-context";
@@ -143,6 +143,7 @@ export function ChatScreen({ navigation }: Props) {
   const [messagingActive, setMessagingActive] = useState(true);
   const [isTalentFree, setIsTalentFree] = useState(false);
   const [messagingPlanId, setMessagingPlanId] = useState<string | null>(null);
+  const [messagingPlanCode, setMessagingPlanCode] = useState("MSG_EMPLOYER_300");
   const [planPrice, setPlanPrice] = useState(300);
   const [loading, setLoading] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
@@ -167,6 +168,7 @@ export function ChatScreen({ navigation }: Props) {
         const planCode = messagingPlanForRoles(user?.roles ?? []);
         const plan = plans.find((p) => p.code === planCode);
         setMessagingPlanId(plan?.id ?? null);
+        setMessagingPlanCode(plan?.code ?? planCode);
         setPlanPrice(plan?.monthlyPriceInr ?? 300);
       }
     } catch (error) {
@@ -210,12 +212,15 @@ export function ChatScreen({ navigation }: Props) {
     }
     try {
       setPurchasing(true);
-      await purchaseSubscription(accessToken, {
-        planId: messagingPlanId,
-        purchaseType: "PAID",
-        purchaseRef: `msg-${Date.now()}`
+      await purchasePlanWithPlayStore(accessToken, {
+        id: messagingPlanId,
+        code: messagingPlanCode,
+        isJobPostingPlan: false
       });
-      Alert.alert("Messaging activated", `You can message talent for 30 days (₹${planPrice}/month).`);
+      Alert.alert(
+        "Messaging activated",
+        `Google Play payment confirmed. You can message talent for 30 days (₹${planPrice}/month).`
+      );
       await load();
     } catch (error) {
       Alert.alert("Purchase failed", (error as Error).message);

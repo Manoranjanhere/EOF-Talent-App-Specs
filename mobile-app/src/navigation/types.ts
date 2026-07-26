@@ -57,4 +57,5 @@ export type AppTabParamList = {
   Help: undefined;
   Reports: NavigatorScreenParams<AdminReportsStackParamList> | undefined;
   Users: NavigatorScreenParams<AdminUsersStackParamList> | undefined;
+  Skills: undefined;
 };
