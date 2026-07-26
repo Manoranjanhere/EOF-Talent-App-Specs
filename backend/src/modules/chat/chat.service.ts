@@ -339,7 +339,7 @@ export class ChatService {
     );
   }
 
-  /** Opens a direct thread without requiring messaging subscription (feedback → admins). */
+  /** Opens a direct thread without requiring messaging subscription (feedback → Super Admin). */
   private async findOrCreateDirectThreadInternal(
     userId: string,
     recipientUserId: string,
@@ -418,7 +418,7 @@ export class ChatService {
     const adminLinks = await this.prisma.userRoleLink.findMany({
       where: {
         isActive: true,
-        groupId: { in: [GroupId.Admin, GroupId.TeamAdmin, GroupId.SuperAdmin] }
+        groupId: GroupId.SuperAdmin
       },
       select: { userId: true }
     });

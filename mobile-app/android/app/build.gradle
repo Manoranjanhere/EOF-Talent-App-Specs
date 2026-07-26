@@ -121,6 +121,8 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0.0"
+        // react-native-iap ships play + amazon flavors; pick Google Play Billing.
+        missingDimensionStrategy 'store', 'play'
     }
     signingConfigs {
         debug {

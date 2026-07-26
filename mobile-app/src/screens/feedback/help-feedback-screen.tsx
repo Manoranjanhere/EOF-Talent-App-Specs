@@ -75,7 +75,7 @@ export function HelpFeedbackScreen() {
       await submitFeedback(accessToken, { subject: subject.trim(), message: message.trim() });
       Alert.alert(
         "Feedback sent",
-        "Your message was delivered to Admin and Super Admin in-app chat."
+        "Your message was delivered to Super Admin in-app chat."
       );
       setSubject("");
       setMessage("");
@@ -87,7 +87,7 @@ export function HelpFeedbackScreen() {
   };
 
   return (
-    <ScreenLayout title="Help & feedback" subtitle="Q&A · contact Admin & Super Admin">
+    <ScreenLayout title="Help & feedback" subtitle="Q&A · contact Super Admin">
       <Card>
         <SectionTitle title="Basic Q&A" />
         {FAQ_ITEMS.map((item, index) => {
@@ -122,7 +122,7 @@ export function HelpFeedbackScreen() {
       <Card>
         <SectionTitle title="Send feedback" />
         <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 10 }}>
-          Your feedback is sent as a chat message to all Admin and Super Admin accounts.
+          Your feedback is sent as a chat message to Super Admin accounts only.
         </Text>
         <LabeledInput label="Subject" value={subject} onChangeText={setSubject} placeholder="Brief summary" />
         <LabeledInput
