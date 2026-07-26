@@ -4,6 +4,11 @@ apply plugin: "com.facebook.react"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
+// Monorepo: react-native is hoisted to the workspace root node_modules
+ext.REACT_NATIVE_NODE_MODULES_DIR = new File(
+    ["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()
+).getParentFile().getAbsolutePath()
+
 static def versionToNumber(major, minor, patch) {
   return patch * 100 + minor * 10000 + major * 1000000
 }
