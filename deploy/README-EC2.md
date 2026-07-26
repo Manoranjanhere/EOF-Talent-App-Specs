@@ -100,16 +100,19 @@ git pull
 docker compose up -d --build
 ```
 
-## Useful commands
+## Seed (skills / tags / org types)
+
+Migrations create tables; **seed** fills skill tags. Without seed, Register shows no primary/secondary skills.
 
 ```bash
-docker compose ps
-docker compose logs -f api
-docker compose logs -f postgres
-docker compose restart api
-docker compose down          # stop (keeps DB volume)
-docker compose down -v       # DANGER: deletes Postgres data
+# After deploy (or whenever tags are empty):
+sudo docker compose exec api node prisma/seed.cjs
+
+# Verify:
+curl http://127.0.0.1:3000/api/tags
 ```
+
+Seed is now run automatically on every API container start (upsert, safe to repeat).
 
 ## Notes
 

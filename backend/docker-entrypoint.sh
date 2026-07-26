@@ -2,7 +2,6 @@
 set -e
 
 echo "[entrypoint] Waiting for database..."
-# Simple retry loop for Postgres readiness
 i=0
 until npx prisma migrate deploy --schema=./prisma/schema.prisma; do
   i=$((i + 1))
@@ -14,10 +13,8 @@ until npx prisma migrate deploy --schema=./prisma/schema.prisma; do
   sleep 2
 done
 
-if [ "${SEED_ON_START:-false}" = "true" ]; then
-  echo "[entrypoint] Seeding database..."
-  npx prisma db seed || echo "[entrypoint] Seed skipped/failed (non-fatal)"
-fi
+echo "[entrypoint] Seeding master data (tags, org types, plans)..."
+node prisma/seed.cjs || echo "[entrypoint] Seed failed (non-fatal)"
 
 echo "[entrypoint] Starting API on 0.0.0.0:${PORT:-3000}"
 exec node dist/main.js

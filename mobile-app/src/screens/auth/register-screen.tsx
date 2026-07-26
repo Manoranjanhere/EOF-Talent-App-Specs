@@ -104,8 +104,18 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
       })
       .catch(() => undefined);
     void listPublishedTags()
-      .then(setTags)
-      .catch(() => undefined);
+      .then((list) => {
+        setTags(Array.isArray(list) ? list : []);
+        if (!Array.isArray(list) || list.length === 0) {
+          Alert.alert(
+            "No skills found",
+            "Skill tags are not set up on the server yet. Ask admin to run DB seed, then reopen Register."
+          );
+        }
+      })
+      .catch((error) => {
+        Alert.alert("Could not load skills", (error as Error).message);
+      });
   }, []);
 
   const onSendOtp = async () => {
@@ -460,6 +470,11 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
         />
 
         <SectionTitle title="Primary skills (max 5)" />
+        {tags.length === 0 ? (
+          <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 8 }}>
+            No skills loaded. Check API connection, or seed the database on the server.
+          </Text>
+        ) : null}
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
           {tags.map((tag) => {
             const selected = primaryTagIds.includes(tag.id);
@@ -486,6 +501,11 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
         </View>
 
         <SectionTitle title="Secondary skills (max 5)" />
+        {tags.length === 0 ? (
+          <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 8 }}>
+            Skills will appear here after the server seed runs.
+          </Text>
+        ) : null}
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
           {tags.map((tag) => {
             const selected = secondaryTagIds.includes(tag.id);
