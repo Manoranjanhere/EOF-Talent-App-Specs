@@ -1,17 +1,17 @@
 import React, { useCallback, useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { Alert } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   Card,
   EmptyState,
   LabeledInput,
+  ListCard,
   PrimaryButton,
   ScreenLayout,
   SectionTitle
 } from "../../components/ui";
 import { createSkillTag, listAdminTags, type SkillTag } from "../../services/tags.service";
 import { useAuth } from "../../state/auth-context";
-import { useTheme } from "../../theme/theme-context";
 
 function slugify(title: string): string {
   return title
@@ -25,7 +25,6 @@ function slugify(title: string): string {
 /** Admin: add primary/secondary skill tags used on talent profiles & job posts. */
 export function AdminTagsScreen() {
   const { accessToken } = useAuth();
-  const { colors } = useTheme();
   const [tags, setTags] = useState<SkillTag[]>([]);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
@@ -82,46 +81,50 @@ export function AdminTagsScreen() {
       title="Skill tags"
       subtitle="Add primary & secondary skills for talent profiles and job posts"
     >
-      <SectionTitle title="Add skill" />
-      <LabeledInput
-        label="Skill title"
-        value={title}
-        onChangeText={(value) => {
-          setTitle(value);
-          if (!slug.trim()) setSlug(slugify(value));
-        }}
-        placeholder="e.g. Voice Over"
-      />
-      <LabeledInput
-        label="Slug"
-        value={slug}
-        onChangeText={setSlug}
-        placeholder="voice-over"
-        autoCapitalize="none"
-      />
-      <PrimaryButton
-        title={saving ? "Adding..." : "Add skill tag"}
-        onPress={onAdd}
-        disabled={saving}
-        loading={saving}
-      />
+      <Card>
+        <SectionTitle title="Add skill" />
+        <LabeledInput
+          label="Skill title"
+          value={title}
+          onChangeText={(value) => {
+            setTitle(value);
+            if (!slug.trim()) setSlug(slugify(value));
+          }}
+          placeholder="e.g. Voice Over"
+        />
+        <LabeledInput
+          label="Slug"
+          value={slug}
+          onChangeText={setSlug}
+          placeholder="voice-over"
+          autoCapitalize="none"
+        />
+        <PrimaryButton
+          title={saving ? "Adding..." : "Add skill tag"}
+          onPress={onAdd}
+          disabled={saving}
+          loading={saving}
+        />
+      </Card>
 
       <SectionTitle title={loading ? "Loading…" : `All skills (${tags.length})`} />
       {tags.length === 0 && !loading ? (
         <EmptyState message="No skills yet. Add the first skill tag above." />
       ) : (
-        tags.map((tag) => (
-          <Card key={tag.id}>
-            <View style={{ gap: 4 }}>
-              <Text style={{ color: colors.text, fontWeight: "700", fontSize: 16 }}>{tag.title}</Text>
-              <Text style={{ color: colors.muted, fontSize: 12 }}>
-                {tag.slug}
-                {tag.published === false ? " · unpublished" : ""}
-                {tag.isActive === false ? " · inactive" : ""}
-              </Text>
-            </View>
-          </Card>
-        ))
+        tags.map((tag) => {
+          const meta: string[] = [tag.slug];
+          if (tag.published === false) meta.push("Unpublished");
+          if (tag.isActive === false) meta.push("Inactive");
+          return (
+            <ListCard
+              key={tag.id}
+              title={tag.title}
+              subtitle={tag.slug}
+              meta={meta}
+              badge={tag.published === false ? "OFF" : tag.isActive === false ? "INACTIVE" : "LIVE"}
+            />
+          );
+        })
       )}
     </ScreenLayout>
   );

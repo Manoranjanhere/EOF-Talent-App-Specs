@@ -215,6 +215,31 @@ export function LinkButton({ title, onPress }: { title: string; onPress: () => v
   );
 }
 
+/** Tiny legal / policy links (Privacy, Terms) — not bold primary CTAs. */
+export function LegalFinePrint({
+  onPrivacy,
+  onTerms
+}: {
+  onPrivacy: () => void;
+  onTerms: () => void;
+}) {
+  const { colors: c } = useTheme();
+
+  return (
+    <View style={{ alignItems: "center", paddingTop: 4, gap: 2 }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "center" }}>
+        <Pressable onPress={onPrivacy} hitSlop={6}>
+          <Text style={{ color: c.muted, fontSize: 11, fontWeight: "400" }}>Privacy Policy</Text>
+        </Pressable>
+        <Text style={{ color: c.muted, fontSize: 11, fontWeight: "400" }}>{"  ·  "}</Text>
+        <Pressable onPress={onTerms} hitSlop={6}>
+          <Text style={{ color: c.muted, fontSize: 11, fontWeight: "400" }}>Terms of Service</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 export { ThemeToggleButton } from "./theme-toggle-button";
 
 export function SegmentedControl<T extends string>({

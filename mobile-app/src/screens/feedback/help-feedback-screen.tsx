@@ -3,7 +3,7 @@ import { Alert, Pressable, Text } from "react-native";
 import {
   Card,
   LabeledInput,
-  LinkButton,
+  LegalFinePrint,
   PrimaryButton,
   ScreenLayout,
   SectionTitle
@@ -115,8 +115,10 @@ export function HelpFeedbackScreen() {
 
       <Card>
         <SectionTitle title="Legal" />
-        <LinkButton title="Privacy Policy" onPress={() => setLegalView("privacy")} />
-        <LinkButton title="Terms of Service" onPress={() => setLegalView("terms")} />
+        <LegalFinePrint
+          onPrivacy={() => setLegalView("privacy")}
+          onTerms={() => setLegalView("terms")}
+        />
       </Card>
 
       <Card>

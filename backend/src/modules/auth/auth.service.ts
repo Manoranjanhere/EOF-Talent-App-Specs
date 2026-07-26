@@ -383,11 +383,20 @@ export class AuthService {
   }
 
   private assertLoginAllowed(user: UserAccount) {
-    if (!user.loginEnabled || !user.isActive) {
-      throw new UnauthorizedException("Login disabled");
+    if (!user.isActive) {
+      throw new UnauthorizedException(
+        "Your account has been blocked by an administrator. You cannot sign in. Contact support if you think this is a mistake."
+      );
+    }
+    if (!user.loginEnabled) {
+      throw new UnauthorizedException(
+        "Login has been disabled for this account by an administrator. Contact support for help."
+      );
     }
     if (user.loginAttempts >= 3) {
-      throw new UnauthorizedException("Account locked due to failed attempts");
+      throw new UnauthorizedException(
+        "Account locked due to too many failed login attempts. Reset your password or contact support."
+      );
     }
   }
 

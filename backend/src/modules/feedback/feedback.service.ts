@@ -26,7 +26,7 @@ export class FeedbackService {
       }
     });
 
-    await this.chatService.notifyAdminsViaChat(
+    await this.chatService.notifySuperAdminsViaChat(
       userId,
       dto.subject,
       dto.message,

@@ -72,9 +72,17 @@ export function ReportsScreen({ navigation }: { navigation?: any }) {
         reportId,
         actionType,
         reportStatus: actionType === "NOTE" ? "REVIEWING" : reportStatus,
-        notes: `Admin ${actionType.toLowerCase()} from Reports tab`
+        notes:
+          actionType === "WARN"
+            ? "Official warning from EOF Talent moderation. Please follow community guidelines. Further violations may lead to suspension or a block."
+            : `Admin ${actionType.toLowerCase()} from Reports tab`
       });
-      Alert.alert("Done", `${actionType} recorded.`);
+      Alert.alert(
+        "Done",
+        actionType === "WARN"
+          ? "Warning sent. The user will see it at the top of Home after they sign in."
+          : `${actionType} recorded.`
+      );
       await loadReports();
     } catch (error) {
       Alert.alert("Action failed", (error as Error).message);
@@ -216,7 +224,13 @@ export function ReportsScreen({ navigation }: { navigation?: any }) {
                   />
                   <SecondaryButton
                     title="Warn"
-                    onPress={() => void onAction(report.id, "WARN")}
+                    onPress={() =>
+                      void onAction(
+                        report.id,
+                        "WARN",
+                        "ACTIONED"
+                      )
+                    }
                     disabled={busy}
                   />
                   <SecondaryButton

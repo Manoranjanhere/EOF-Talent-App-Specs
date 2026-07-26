@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Alert } from "react-native";
 import {
   LabeledInput,
+  LegalFinePrint,
   LinkButton,
   PrimaryButton,
   ScreenLayout,
@@ -63,8 +64,10 @@ export function LoginScreen({ navigation }: { navigation: any }) {
       footer={
         <>
           <LinkButton title="Create a new account" onPress={() => navigation.navigate("Register")} />
-          <LinkButton title="Privacy Policy" onPress={() => navigation.navigate("PrivacyPolicy")} />
-          <LinkButton title="Terms of Service" onPress={() => navigation.navigate("TermsOfService")} />
+          <LegalFinePrint
+            onPrivacy={() => navigation.navigate("PrivacyPolicy")}
+            onTerms={() => navigation.navigate("TermsOfService")}
+          />
         </>
       }
     >

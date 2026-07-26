@@ -409,22 +409,34 @@ export class ChatService {
     return message;
   }
 
-  async notifyAdminsViaChat(
+  /**
+   * Help feedback → Super Admin (group 10) only.
+   * Never notify Admin (5) or Team Admin (7).
+   */
+  async notifySuperAdminsViaChat(
     fromUserId: string,
     subject: string,
     body: string,
     audit: AuditData
   ) {
-    const adminLinks = await this.prisma.userRoleLink.findMany({
+    const SUPER_ADMIN_GROUP_ID = GroupId.SuperAdmin; // 10
+
+    const superAdminLinks = await this.prisma.userRoleLink.findMany({
       where: {
         isActive: true,
-        groupId: GroupId.SuperAdmin
+        groupId: SUPER_ADMIN_GROUP_ID
       },
       select: { userId: true }
     });
-    const adminIds = [...new Set(adminLinks.map((l) => l.userId))].filter(
-      (id) => id !== fromUserId
-    );
+
+    // Deduplicate; never fall back to Admin / Team Admin roles.
+    const superAdminIds = [
+      ...new Set(superAdminLinks.map((link) => link.userId))
+    ].filter((id) => id !== fromUserId);
+
+    if (superAdminIds.length === 0) {
+      return { notifiedCount: 0, recipientRole: "SUPER_ADMIN" as const };
+    }
 
     const sender = await this.prisma.userAccount.findUnique({
       where: { id: fromUserId },
@@ -433,12 +445,19 @@ export class ChatService {
     const contact = sender?.email ?? sender?.mobileNumber ?? fromUserId;
     const text = `📩 Feedback: ${subject}\n\n${body}\n\n— ${sender?.fullName ?? "User"} (${contact})`;
 
-    for (const adminId of adminIds) {
-      const thread = await this.findOrCreateDirectThreadInternal(fromUserId, adminId, audit);
+    for (const superAdminId of superAdminIds) {
+      const thread = await this.findOrCreateDirectThreadInternal(
+        fromUserId,
+        superAdminId,
+        audit
+      );
       await this.createMessageInternal(fromUserId, thread.id, text, audit);
     }
 
-    return { notifiedCount: adminIds.length };
+    return {
+      notifiedCount: superAdminIds.length,
+      recipientRole: "SUPER_ADMIN" as const
+    };
   }
 
   async getThread(userId: string, threadId: string) {

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { GroupId } from "@eof/shared";
 import { FlagStatus } from "@prisma/client";
@@ -41,5 +41,19 @@ export class ModerationController {
     @Audit() audit: { ip: string; updatedBy: string }
   ) {
     return this.moderationService.takeAction(user.userId, dto, audit);
+  }
+
+  /** Member: unread admin warnings to show after login. */
+  @Get("warnings/me")
+  listMyWarnings(@CurrentUser() user: { userId: string }) {
+    return this.moderationService.listMyWarnings(user.userId);
+  }
+
+  @Patch("warnings/:id/acknowledge")
+  acknowledgeWarning(
+    @CurrentUser() user: { userId: string },
+    @Param("id") id: string
+  ) {
+    return this.moderationService.acknowledgeWarning(user.userId, id);
   }
 }

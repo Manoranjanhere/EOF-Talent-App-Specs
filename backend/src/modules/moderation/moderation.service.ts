@@ -74,7 +74,11 @@ export class ModerationService {
         actedOnUserId: report.reportedUserId,
         actedByUserId: adminUserId,
         actionType: dto.actionType,
-        notes: dto.notes,
+        notes:
+          dto.notes?.trim() ||
+          (dto.actionType === "WARN"
+            ? "Official warning from EOF Talent moderation. Please follow community guidelines."
+            : null),
         lastUpdateIp: audit.ip,
         lastUpdateBy: audit.updatedBy
       }
@@ -133,5 +137,41 @@ export class ModerationService {
     });
 
     return action;
+  }
+
+  /** Active WARN notices for the signed-in member (shown until acknowledged). */
+  listMyWarnings(userId: string) {
+    return this.prisma.adminActionLog.findMany({
+      where: {
+        actedOnUserId: userId,
+        actionType: "WARN",
+        isActive: true
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        actionType: true,
+        notes: true,
+        createdAt: true
+      }
+    });
+  }
+
+  async acknowledgeWarning(userId: string, actionId: string) {
+    const action = await this.prisma.adminActionLog.findFirst({
+      where: {
+        id: actionId,
+        actedOnUserId: userId,
+        actionType: "WARN",
+        isActive: true
+      }
+    });
+    if (!action) {
+      throw new NotFoundException("Warning not found");
+    }
+    return this.prisma.adminActionLog.update({
+      where: { id: actionId },
+      data: { isActive: false }
+    });
   }
 }

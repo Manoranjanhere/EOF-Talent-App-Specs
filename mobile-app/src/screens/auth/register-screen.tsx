@@ -4,6 +4,7 @@ import { GroupId } from "@eof/shared";
 import * as ImagePicker from "expo-image-picker";
 import {
   LabeledInput,
+  LegalFinePrint,
   LinkButton,
   PrimaryButton,
   RoleSelector,
@@ -730,8 +731,10 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
       footer={
         <>
           <LinkButton title="Already have an account? Sign in" onPress={() => navigation.goBack()} />
-          <LinkButton title="Privacy Policy" onPress={() => navigation.navigate("PrivacyPolicy")} />
-          <LinkButton title="Terms of Service" onPress={() => navigation.navigate("TermsOfService")} />
+          <LegalFinePrint
+            onPrivacy={() => navigation.navigate("PrivacyPolicy")}
+            onTerms={() => navigation.navigate("TermsOfService")}
+          />
         </>
       }
     >
