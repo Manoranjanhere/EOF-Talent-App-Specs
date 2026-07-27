@@ -410,34 +410,16 @@ export class ChatService {
   }
 
   /**
-   * Help feedback → Super Admin (group 10) only.
-   * Never notify Admin (5) or Team Admin (7).
+   * Deliver feedback DMs to an explicit Super Admin user-id list only.
+   * Callers must already filter to group_id = 10 — this never looks up Admin roles.
    */
-  async notifySuperAdminsViaChat(
+  async deliverFeedbackMessages(
     fromUserId: string,
+    superAdminUserIds: string[],
     subject: string,
     body: string,
     audit: AuditData
   ) {
-    const SUPER_ADMIN_GROUP_ID = GroupId.SuperAdmin; // 10
-
-    const superAdminLinks = await this.prisma.userRoleLink.findMany({
-      where: {
-        isActive: true,
-        groupId: SUPER_ADMIN_GROUP_ID
-      },
-      select: { userId: true }
-    });
-
-    // Deduplicate; never fall back to Admin / Team Admin roles.
-    const superAdminIds = [
-      ...new Set(superAdminLinks.map((link) => link.userId))
-    ].filter((id) => id !== fromUserId);
-
-    if (superAdminIds.length === 0) {
-      return { notifiedCount: 0, recipientRole: "SUPER_ADMIN" as const };
-    }
-
     const sender = await this.prisma.userAccount.findUnique({
       where: { id: fromUserId },
       select: { fullName: true, email: true, mobileNumber: true }
@@ -445,7 +427,8 @@ export class ChatService {
     const contact = sender?.email ?? sender?.mobileNumber ?? fromUserId;
     const text = `📩 Feedback: ${subject}\n\n${body}\n\n— ${sender?.fullName ?? "User"} (${contact})`;
 
-    for (const superAdminId of superAdminIds) {
+    const uniqueIds = [...new Set(superAdminUserIds)].filter((id) => id && id !== fromUserId);
+    for (const superAdminId of uniqueIds) {
       const thread = await this.findOrCreateDirectThreadInternal(
         fromUserId,
         superAdminId,
@@ -454,10 +437,41 @@ export class ChatService {
       await this.createMessageInternal(fromUserId, thread.id, text, audit);
     }
 
-    return {
-      notifiedCount: superAdminIds.length,
-      recipientRole: "SUPER_ADMIN" as const
-    };
+    return { notifiedCount: uniqueIds.length };
+  }
+
+  /**
+   * @deprecated Prefer FeedbackService.notifySuperAdminsOnly → deliverFeedbackMessages.
+   * Kept for safety; still Super Admin (10) only.
+   */
+  async notifySuperAdminsViaChat(
+    fromUserId: string,
+    subject: string,
+    body: string,
+    audit: AuditData
+  ) {
+    const SUPER_ADMIN_GROUP_ID = 10;
+
+    const superAdminLinks = await this.prisma.userRoleLink.findMany({
+      where: {
+        isActive: true,
+        groupId: SUPER_ADMIN_GROUP_ID,
+        group: { code: "SUPER_ADMIN" }
+      },
+      select: { userId: true }
+    });
+
+    const superAdminIds = [
+      ...new Set(superAdminLinks.map((link) => link.userId))
+    ].filter((id) => id !== fromUserId);
+
+    return this.deliverFeedbackMessages(
+      fromUserId,
+      superAdminIds,
+      subject,
+      body,
+      audit
+    );
   }
 
   async getThread(userId: string, threadId: string) {
