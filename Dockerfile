@@ -30,7 +30,7 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && apt-get install -y --no-install-recommends openssl ca-certificates python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json tsconfig.base.json ./
@@ -38,9 +38,10 @@ COPY packages/shared/package.json ./packages/shared/
 COPY backend/package.json ./backend/
 COPY mobile-app/package.json ./mobile-app/
 
-# Install runtime deps; skip postinstall (no schema yet). Prisma CLI is for migrate deploy.
+# Skip postinstall (prisma generate needs schema). Rebuild bcrypt native binding.
 RUN npm ci --omit=dev --workspace=@eof/shared --workspace=backend --ignore-scripts \
   && npm install prisma@5.22.0 --no-save --workspace=backend --include=dev --ignore-scripts \
+  && npm rebuild bcrypt \
   && npm cache clean --force
 
 COPY --from=build /app/packages/shared ./packages/shared
