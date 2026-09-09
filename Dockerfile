@@ -13,7 +13,8 @@ COPY packages/shared/package.json ./packages/shared/
 COPY backend/package.json ./backend/
 COPY mobile-app/package.json ./mobile-app/
 
-RUN npm ci --workspace=@eof/shared --workspace=backend
+# postinstall runs `prisma generate`; schema is not in the image yet
+RUN npm ci --workspace=@eof/shared --workspace=backend --ignore-scripts
 
 COPY packages/shared ./packages/shared
 COPY backend ./backend
@@ -37,9 +38,9 @@ COPY packages/shared/package.json ./packages/shared/
 COPY backend/package.json ./backend/
 COPY mobile-app/package.json ./mobile-app/
 
-# Install runtime deps; keep prisma CLI for migrate deploy
-RUN npm ci --omit=dev --workspace=@eof/shared --workspace=backend \
-  && npm install prisma@5.22.0 --no-save --workspace=backend --include=dev \
+# Install runtime deps; skip postinstall (no schema yet). Prisma CLI is for migrate deploy.
+RUN npm ci --omit=dev --workspace=@eof/shared --workspace=backend --ignore-scripts \
+  && npm install prisma@5.22.0 --no-save --workspace=backend --include=dev --ignore-scripts \
   && npm cache clean --force
 
 COPY --from=build /app/packages/shared ./packages/shared
