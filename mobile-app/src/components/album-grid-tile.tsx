@@ -1,4 +1,3 @@
-import React from "react";
 import { Pressable, Text, View, ViewStyle } from "react-native";
 import { CachedMediaImage } from "./cached-media-image";
 import { useTheme } from "../theme/theme-context";
@@ -35,7 +34,7 @@ export function AlbumGridTile({
           borderColor: colors.border,
           opacity: pressed ? 0.92 : 1,
           elevation: 2,
-          shadowColor: "#0F172A",
+          shadowColor: colors.shadow,
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.08,
           shadowRadius: 6
@@ -60,7 +59,7 @@ export function AlbumGridTile({
           bottom: 0,
           paddingHorizontal: 8,
           paddingVertical: 6,
-          backgroundColor: "rgba(15,23,42,0.62)"
+          backgroundColor: "rgba(28,20,18,0.72)"
         }}
       >
         <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }} numberOfLines={1}>

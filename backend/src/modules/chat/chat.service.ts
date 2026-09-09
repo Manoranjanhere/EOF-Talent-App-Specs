@@ -16,7 +16,9 @@ type AuditData = {
   updatedBy: string;
 };
 
-const MESSAGING_PLAN_CODES = ["MSG_MEMBER_100", "MSG_EMPLOYER_300"];
+const EMPLOYER_MESSAGING_CODES = ["MSG_EMPLOYER_300"];
+const TALENT_MESSAGING_CODES = ["MSG_MEMBER_100", "TALENT_SERIOUS_JOB_200"];
+const TALENT_SERIOUS_CODE = "TALENT_SERIOUS_JOB_200";
 
 @Injectable()
 export class ChatService {
@@ -47,14 +49,19 @@ export class ChatService {
     return Boolean(talentRole);
   }
 
-  async assertMessagingSubscription(userId: string) {
-    if (await this.isAdminUser(userId)) {
-      return;
-    }
-    if (await this.isTalentUser(userId)) {
-      return;
-    }
-    const active = await this.prisma.userSubscription.findFirst({
+  private async isEmployerUser(userId: string) {
+    const employerRole = await this.prisma.userRoleLink.findFirst({
+      where: {
+        userId,
+        groupId: GroupId.TalentEmployerOrAgency,
+        isActive: true
+      }
+    });
+    return Boolean(employerRole);
+  }
+
+  private async activeMessagingSub(userId: string, codes: string[]) {
+    return this.prisma.userSubscription.findFirst({
       where: {
         userId,
         isActive: true,
@@ -63,45 +70,75 @@ export class ChatService {
           isJobPostingPlan: false,
           published: true,
           isActive: true,
-          code: { in: MESSAGING_PLAN_CODES }
+          code: { in: codes }
         }
-      }
+      },
+      include: { plan: true },
+      orderBy: { lastExpiry: "desc" }
     });
-    if (!active) {
+  }
+
+  async assertMessagingSubscription(userId: string) {
+    if (await this.isAdminUser(userId)) {
+      return;
+    }
+    const employerSub = await this.activeMessagingSub(userId, EMPLOYER_MESSAGING_CODES);
+    const talentSub = await this.activeMessagingSub(userId, TALENT_MESSAGING_CODES);
+    if (employerSub || talentSub) {
+      return;
+    }
+    if (await this.isEmployerUser(userId)) {
       throw new ForbiddenException(
-        "Active messaging subscription required (₹300/month for employers and agencies)"
+        "Active messaging subscription required (₹300/month for employers — includes 2 free job slots)"
+      );
+    }
+    throw new ForbiddenException(
+      "Buy Messaging (₹100) to chat with talent, or Serious about job (₹200) to message everyone and show the Serious badge"
+    );
+  }
+
+  private async assertTalentCanMessageRecipient(senderId: string, recipientUserId: string) {
+    if (await this.isAdminUser(senderId)) return;
+    if (await this.activeMessagingSub(senderId, EMPLOYER_MESSAGING_CODES)) return;
+    if (await this.activeMessagingSub(senderId, [TALENT_SERIOUS_CODE])) return;
+    if (
+      (await this.isTalentUser(senderId)) &&
+      (await this.isEmployerUser(recipientUserId))
+    ) {
+      throw new ForbiddenException(
+        "Messaging-only plan is talent-to-talent. Upgrade to Serious about job to message employers"
       );
     }
   }
 
   async messagingStatus(userId: string) {
     if (await this.isAdminUser(userId)) {
-      return { active: true, isAdmin: true, planCode: null, expiresAt: null, isTalentFree: false };
+      return {
+        active: true,
+        isAdmin: true,
+        planCode: null,
+        expiresAt: null,
+        isTalentFree: false,
+        canMessageEmployers: true,
+        seriousAboutJob: false,
+        hasTalentMessaging: true,
+        hasEmployerMessaging: true
+      };
     }
-    if (await this.isTalentUser(userId)) {
-      return { active: true, isAdmin: false, planCode: null, expiresAt: null, isTalentFree: true };
-    }
-    const sub = await this.prisma.userSubscription.findFirst({
-      where: {
-        userId,
-        isActive: true,
-        lastExpiry: { gte: new Date() },
-        plan: {
-          isJobPostingPlan: false,
-          published: true,
-          isActive: true,
-          code: { in: MESSAGING_PLAN_CODES }
-        }
-      },
-      include: { plan: true },
-      orderBy: { lastExpiry: "desc" }
-    });
+    const serious = await this.activeMessagingSub(userId, [TALENT_SERIOUS_CODE]);
+    const talentMsg = await this.activeMessagingSub(userId, TALENT_MESSAGING_CODES);
+    const employerMsg = await this.activeMessagingSub(userId, EMPLOYER_MESSAGING_CODES);
+    const activeSub = serious ?? employerMsg ?? talentMsg;
     return {
-      active: Boolean(sub),
+      active: Boolean(activeSub),
       isAdmin: false,
-      planCode: sub?.plan.code ?? null,
-      expiresAt: sub?.lastExpiry ?? null,
-      isTalentFree: false
+      planCode: activeSub?.plan.code ?? null,
+      expiresAt: activeSub?.lastExpiry ?? null,
+      isTalentFree: false,
+      canMessageEmployers: Boolean(serious || employerMsg),
+      seriousAboutJob: Boolean(serious),
+      hasTalentMessaging: Boolean(talentMsg),
+      hasEmployerMessaging: Boolean(employerMsg)
     };
   }
 
@@ -110,6 +147,7 @@ export class ChatService {
       throw new BadRequestException("Cannot message yourself");
     }
     await this.assertMessagingSubscription(userId);
+    await this.assertTalentCanMessageRecipient(userId, recipientUserId);
 
     const recipient = await this.prisma.userAccount.findUnique({
       where: { id: recipientUserId }
@@ -167,7 +205,7 @@ export class ChatService {
         }
       },
       include: {
-        participants: { include: { user: true } },
+        participants: { include: { user: { select: { id: true, fullName: true } } } },
         messages: { orderBy: { createdAt: "desc" }, take: 1 }
       }
     });
@@ -179,6 +217,11 @@ export class ChatService {
     const allParticipants = Array.from(new Set([userId, ...dto.participantUserIds]));
     if (allParticipants.length < 2) {
       throw new BadRequestException("At least 2 participants required");
+    }
+    for (const participantId of allParticipants) {
+      if (participantId !== userId) {
+        await this.assertTalentCanMessageRecipient(userId, participantId);
+      }
     }
 
     return this.prisma.chatThread.create({
@@ -195,7 +238,7 @@ export class ChatService {
         }
       },
       include: {
-        participants: { include: { user: true } }
+        participants: { include: { user: { select: { id: true, fullName: true } } } }
       }
     });
   }
@@ -203,6 +246,14 @@ export class ChatService {
   async sendMessage(userId: string, threadId: string, dto: SendMessageDto, audit: AuditData) {
     await this.assertMessagingSubscription(userId);
     await this.assertThreadAccess(userId, threadId);
+
+    const others = await this.prisma.chatThreadParticipant.findMany({
+      where: { threadId, isActive: true, userId: { not: userId } },
+      select: { userId: true }
+    });
+    for (const other of others) {
+      await this.assertTalentCanMessageRecipient(userId, other.userId);
+    }
 
     const blockedByOtherUser = await this.prisma.chatBlockList.findFirst({
       where: {

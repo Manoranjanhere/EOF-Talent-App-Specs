@@ -1,22 +1,33 @@
-import React, { useCallback, useState } from "react";
-import { Alert, Text, View } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useCallback, useState, type ReactNode } from "react";
+import { Alert, Pressable, View } from "react-native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { GroupId } from "@eof/shared";
 import {
   Card,
   DangerButton,
   PrimaryButton,
   ScreenLayout,
-  SectionTitle,
-  StatPill
+  SectionTitle
 } from "../../components/ui";
+import { AppText } from "../../components/app-text";
 import { ThemeToggleButton } from "../../components/theme-toggle-button";
+import { ChatUserAvatar } from "../../components/chat-user-avatar";
+import {
+  ChatIcon,
+  DiscoverIcon,
+  HelpIcon,
+  JobsIcon,
+  PostJobIcon,
+  ProfileIcon
+} from "../../components/icons";
 import {
   acknowledgeWarning,
   listMyWarnings,
   type AdminWarningNotice
 } from "../../services/moderation-notices.service";
+import { getProfile, type PublicProfile } from "../../services/profile.service";
 import { useAuth } from "../../state/auth-context";
+import { fonts } from "../../theme/typography";
 import { useTheme } from "../../theme/theme-context";
 
 function roleLabel(groupId: number) {
@@ -36,30 +47,86 @@ function formatWarningDate(iso: string) {
   }
 }
 
+function DestinationTile({
+  label,
+  title,
+  icon,
+  onPress
+}: {
+  label: string;
+  title: string;
+  icon: ReactNode;
+  onPress: () => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flex: 1,
+        minWidth: "46%",
+        backgroundColor: colors.card,
+        borderRadius: 22,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: 16,
+        minHeight: 118,
+        opacity: pressed ? 0.92 : 1,
+        transform: [{ scale: pressed ? 0.985 : 1 }]
+      })}
+    >
+      <View style={{ height: 3, backgroundColor: colors.gold, borderRadius: 2, marginBottom: 14, width: 28 }} />
+      {icon}
+      <AppText variant="label" style={{ color: colors.muted, marginTop: 12 }}>
+        {label}
+      </AppText>
+      <AppText
+        style={{
+          color: colors.text,
+          fontFamily: fonts.serifBold,
+          fontSize: 22,
+          lineHeight: 26,
+          marginTop: 2,
+          fontWeight: "700"
+        }}
+      >
+        {title}
+      </AppText>
+    </Pressable>
+  );
+}
+
 export function DashboardScreen() {
   const auth = useAuth();
+  const navigation = useNavigation<any>();
   const { colors, isDark } = useTheme();
   const roles = auth.user?.roles ?? [];
   const [warnings, setWarnings] = useState<AdminWarningNotice[]>([]);
   const [ackingId, setAckingId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<PublicProfile | null>(null);
 
   const isTalent = roles.includes(GroupId.Talent);
   const isEmployer = roles.includes(GroupId.TalentEmployerOrAgency);
+  const firstName = auth.user?.fullName?.split(" ")[0] ?? "there";
 
-  const loadWarnings = useCallback(async () => {
+  const load = useCallback(async () => {
     if (!auth.accessToken) return;
     try {
-      const list = await listMyWarnings(auth.accessToken);
+      const [list, me] = await Promise.all([
+        listMyWarnings(auth.accessToken),
+        getProfile(auth.user?.id ?? "", auth.accessToken).catch(() => null)
+      ]);
       setWarnings(Array.isArray(list) ? list : []);
+      if (me) setProfile(me);
     } catch {
-      // Non-blocking — home still works if notices fail
+      // Home still works if notices fail
     }
-  }, [auth.accessToken]);
+  }, [auth.accessToken, auth.user?.id]);
 
   useFocusEffect(
     useCallback(() => {
-      void loadWarnings();
-    }, [loadWarnings])
+      void load();
+    }, [load])
   );
 
   const onAcknowledge = async (warning: AdminWarningNotice) => {
@@ -77,29 +144,29 @@ export function DashboardScreen() {
 
   return (
     <ScreenLayout
-      title={`Hi, ${auth.user?.fullName ?? "there"}`}
-      subtitle="Your talent marketplace hub"
+      title={`Good day, ${firstName}`}
+      subtitle="Your stage is live."
       headerRight={<ThemeToggleButton />}
     >
       {warnings.map((warning) => (
         <Card
           key={warning.id}
           style={{
-            borderColor: "#F59E0B",
-            backgroundColor: isDark ? "#3B2F14" : "#FFFBEB"
+            borderColor: colors.warning,
+            backgroundColor: isDark ? colors.goldSoft : "#FFFBEB"
           }}
         >
           <SectionTitle title="Official warning" />
-          <Text style={{ color: colors.text, fontSize: 14, lineHeight: 21, fontWeight: "600" }}>
+          <AppText style={{ color: colors.text, fontFamily: fonts.sansSemi }}>
             An administrator sent you a warning.
-          </Text>
-          <Text style={{ color: colors.text, fontSize: 14, lineHeight: 21, marginTop: 6 }}>
+          </AppText>
+          <AppText style={{ color: colors.text, marginTop: 6 }}>
             {warning.notes?.trim() ||
               "Please follow community guidelines. Further violations may lead to suspension or a block."}
-          </Text>
-          <Text style={{ color: colors.muted, fontSize: 11, marginTop: 8 }}>
+          </AppText>
+          <AppText variant="caption" style={{ color: colors.muted, marginTop: 8 }}>
             {formatWarningDate(warning.createdAt)}
-          </Text>
+          </AppText>
           <PrimaryButton
             title={ackingId === warning.id ? "Dismissing..." : "I understand"}
             onPress={() => void onAcknowledge(warning)}
@@ -110,49 +177,87 @@ export function DashboardScreen() {
       ))}
 
       <Card>
-        <SectionTitle title="Account" />
-        <Text style={{ color: colors.muted, fontSize: 14 }}>
-          Signed in as{" "}
-          <Text style={{ color: colors.text, fontWeight: "700" }}>{auth.user?.fullName}</Text>
-        </Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-          {roles.map((r) => (
-            <View
-              key={r}
-              style={{
-                backgroundColor: colors.primarySoft,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 999,
-                borderWidth: 1,
-                borderColor: colors.border
-              }}
-            >
-              <Text style={{ color: colors.accentText, fontSize: 12, fontWeight: "600" }}>
-                {roleLabel(r)}
-              </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+          <ChatUserAvatar
+            name={auth.user?.fullName || "You"}
+            uri={profile?.profilePhotoUrl}
+            cacheKey={profile?.profilePhotoObjectKey}
+            size={64}
+          />
+          <View style={{ flex: 1 }}>
+            <AppText variant="label" style={{ color: colors.muted }}>
+              On set
+            </AppText>
+            <AppText variant="title" style={{ color: colors.text, fontSize: 26, lineHeight: 30 }}>
+              {auth.user?.fullName}
+            </AppText>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+              {roles.map((r) => (
+                <View
+                  key={r}
+                  style={{
+                    backgroundColor: colors.goldSoft,
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: colors.gold
+                  }}
+                >
+                  <AppText variant="label" style={{ color: colors.goldText, fontSize: 10 }}>
+                    {roleLabel(r)}
+                  </AppText>
+                </View>
+              ))}
             </View>
-          ))}
+          </View>
         </View>
       </Card>
 
-      <View style={{ flexDirection: "row", gap: 10 }}>
-        {isEmployer ? <StatPill label="Discover" value="Talent" /> : null}
-        {isTalent ? <StatPill label="Jobs" value="Board" /> : null}
-        <StatPill label="Chat" value="Inbox" />
-        <StatPill label="Help" value="Q&A" />
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+        {isEmployer || isTalent ? (
+          <DestinationTile
+            label="Cast"
+            title="Discover"
+            icon={<DiscoverIcon color={colors.primary} size={24} />}
+            onPress={() => navigation.navigate("Discover")}
+          />
+        ) : null}
+        {isTalent ? (
+          <DestinationTile
+            label="Work"
+            title="Jobs"
+            icon={<JobsIcon color={colors.primary} size={24} />}
+            onPress={() => navigation.navigate("Jobs")}
+          />
+        ) : null}
+        {isEmployer ? (
+          <DestinationTile
+            label="Hire"
+            title="Post a job"
+            icon={<PostJobIcon color={colors.primary} size={24} />}
+            onPress={() => navigation.navigate("PostJob")}
+          />
+        ) : null}
+        <DestinationTile
+          label="Inbox"
+          title="Chat"
+          icon={<ChatIcon color={colors.primary} size={24} />}
+          onPress={() => navigation.navigate("Chat")}
+        />
+        <DestinationTile
+          label="You"
+          title="Profile"
+          icon={<ProfileIcon color={colors.primary} size={24} />}
+          onPress={() => navigation.navigate("Profile")}
+        />
+        <DestinationTile
+          label="Support"
+          title="Help"
+          icon={<HelpIcon color={colors.primary} size={24} />}
+          onPress={() => navigation.navigate("Help")}
+        />
       </View>
-
-      <Card>
-        <SectionTitle title="Quick start" />
-        <Text style={{ color: colors.muted, lineHeight: 22, fontSize: 14 }}>
-          {isTalent
-            ? "• Complete your profile and add a photo\n• Browse jobs and apply with one tap\n• Message employers for free"
-            : isEmployer
-              ? "• Post jobs (₹300 per listing, 90 days)\n• Discover talent and view portfolios\n• Message talent after subscribing (₹300/mo)"
-              : "• Use Reports and Users tabs to moderate\n• Feedback from members arrives in your Chat inbox"}
-        </Text>
-      </Card>
 
       <DangerButton title="Sign out" onPress={auth.signOut} />
     </ScreenLayout>

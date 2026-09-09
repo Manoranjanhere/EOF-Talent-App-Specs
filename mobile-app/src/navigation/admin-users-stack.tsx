@@ -1,4 +1,3 @@
-import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { UserActionsScreen } from "../screens/admin/user-actions-screen";
 import { MemberProfileScreen } from "../screens/search/member-profile-screen";

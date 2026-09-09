@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException
 } from "@nestjs/common";
-import { AlbumVisibility, MediaAssetType } from "@prisma/client";
+import { AlbumVisibility, MediaAssetType } from "../../database/prisma-client";
 import { PrismaService } from "../../database/prisma.service";
 import { StorageService } from "../storage/storage.service";
 import { CreateAlbumDto } from "./dto/create-album.dto";

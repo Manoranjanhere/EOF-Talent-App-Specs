@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Alert,
   Dimensions,
@@ -21,9 +21,10 @@ import {
   SectionTitle,
   StarRatingPicker
 } from "../../components/ui";
-import { listUserAlbums, mediaUrl } from "../../services/albums.service";
-import { startDirectThread } from "../../services/chat.service";
-import { getProfile, rateTalent } from "../../services/profile.service";
+import { listUserAlbums, mediaUrl, type AlbumSummary } from "../../services/albums.service";
+import { getMessagingStatus, startDirectThread } from "../../services/chat.service";
+import { getProfile, rateTalent, type PublicProfile } from "../../services/profile.service";
+import { AddToListPanel } from "../lists/add-to-list-panel";
 import { useAuth } from "../../state/auth-context";
 import { useTheme } from "../../theme/theme-context";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -32,6 +33,7 @@ import type { AdminReportsStackParamList } from "../../navigation/types";
 import type { AdminUsersStackParamList } from "../../navigation/types";
 import type { PostJobStackParamList } from "../../navigation/types";
 import type { ChatStackParamList } from "../../navigation/types";
+import type { JobsStackParamList } from "../../navigation/types";
 import type { MemberFlowParamList } from "../../navigation/types";
 
 type Props =
@@ -39,7 +41,8 @@ type Props =
   | NativeStackScreenProps<AdminReportsStackParamList, "MemberProfile">
   | NativeStackScreenProps<AdminUsersStackParamList, "MemberProfile">
   | NativeStackScreenProps<PostJobStackParamList, "MemberProfile">
-  | NativeStackScreenProps<ChatStackParamList, "MemberProfile">;
+  | NativeStackScreenProps<ChatStackParamList, "MemberProfile">
+  | NativeStackScreenProps<JobsStackParamList, "MemberProfile">;
 
 type MemberFlowNavigation = NativeStackNavigationProp<MemberFlowParamList>;
 
@@ -58,27 +61,32 @@ export function MemberProfileScreen({ route, navigation }: Props) {
   const userId = route.params.userId;
   const { accessToken, user } = useAuth();
   const { colors } = useTheme();
-  const [profile, setProfile] = useState<any>(null);
-  const [albums, setAlbums] = useState<any[]>([]);
+  const [profile, setProfile] = useState<PublicProfile | null>(null);
+  const [albums, setAlbums] = useState<AlbumSummary[]>([]);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [ratingBusy, setRatingBusy] = useState(false);
   const [messagingBusy, setMessagingBusy] = useState(false);
+  const [canMessageEmployers, setCanMessageEmployers] = useState(true);
+  const [showAddToList, setShowAddToList] = useState(false);
 
   const isEmployer = (user?.roles ?? []).includes(GroupId.TalentEmployerOrAgency);
+  const isTalent = (user?.roles ?? []).includes(GroupId.Talent);
   const isSelf = user?.id === userId;
 
   const load = async () => {
     if (!accessToken || !userId) return;
     try {
-      const [p, a] = await Promise.all([
+      const [p, a, status] = await Promise.all([
         getProfile(userId, accessToken),
-        listUserAlbums(accessToken, userId).catch(() => [])
+        listUserAlbums(accessToken, userId).catch(() => []),
+        getMessagingStatus(accessToken).catch(() => null)
       ]);
       setProfile(p);
       setAlbums(Array.isArray(a) ? a : []);
-      const existing = (p as any).myRating;
+      setCanMessageEmployers(status?.canMessageEmployers !== false);
+      const existing = p.myRating;
       if (typeof existing === "number" && existing >= 1 && existing <= 5) {
         setSelectedRating(existing);
       }
@@ -90,15 +98,15 @@ export function MemberProfileScreen({ route, navigation }: Props) {
 
   const onSubmitRating = async () => {
     if (!accessToken || !selectedRating) {
-      Alert.alert("Pick a rating", "Select 1 to 5 stars for this talent.");
+      Alert.alert("Pick a rating", "Select 1 to 5 stars.");
       return;
     }
     try {
       setRatingBusy(true);
-      const updated = (await rateTalent(accessToken, userId, {
+      const updated = await rateTalent(accessToken, userId, {
         ratingValue: selectedRating
-      })) as any;
-      setProfile((prev: any) =>
+      });
+      setProfile((prev) =>
         prev
           ? {
               ...prev,
@@ -110,7 +118,7 @@ export function MemberProfileScreen({ route, navigation }: Props) {
       );
       Alert.alert(
         "Rating saved",
-        `You rated ${profile?.fullName || "this talent"} ${selectedRating}/5.`
+        `You rated ${profile?.fullName || "this member"} ${selectedRating}/5.`
       );
     } catch (error) {
       Alert.alert("Rating failed", (error as Error).message);
@@ -127,17 +135,31 @@ export function MemberProfileScreen({ route, navigation }: Props) {
 
   const avatarUri = mediaUrl(profile?.profilePhotoUrl) || null;
   const avatarKey = profile?.profilePhotoObjectKey || null;
-  const tagTitles = ((profile?.profileTags ?? []) as any[])
+  const tagTitles = (profile?.profileTags ?? [])
     .filter((t) => t.isActive !== false)
     .map((t) => t.tag?.title)
-    .filter(Boolean);
+    .filter((title): title is string => Boolean(title));
   const isOrg = Boolean(profile?.profileOrg);
+  const isEmployerProfile =
+    isOrg ||
+    ((profile?.roles ?? []) as Array<{ groupId: number }>).some(
+      (r) => r.groupId === GroupId.TalentEmployerOrAgency
+    );
+  const isTalentProfile = ((profile?.roles ?? []) as Array<{ groupId: number }>).some(
+    (r) => r.groupId === GroupId.Talent
+  );
+  const canRate =
+    !isSelf && ((isEmployer && isTalentProfile) || (isTalent && isEmployerProfile));
+  const canSendMessage = !isSelf && (!isEmployerProfile || canMessageEmployers);
+  const inDiscover = ((navigation.getState()?.routeNames as string[] | undefined) ?? []).includes(
+    "PeopleLists"
+  );
 
   const onMessage = async () => {
     if (!accessToken || isSelf) return;
     try {
       setMessagingBusy(true);
-      const thread = (await startDirectThread(accessToken, userId)) as any;
+      const thread = await startDirectThread(accessToken, userId);
       navigation.getParent()?.navigate("Chat", {
         screen: "ChatConversation",
         params: {
@@ -163,7 +185,7 @@ export function MemberProfileScreen({ route, navigation }: Props) {
 
   if (!profile) {
     return (
-      <ScreenLayout title="Profile" subtitle="Loading...">
+      <ScreenLayout title="Profile" subtitle="Loading..." headerStyle="slim">
         <EmptyState message="Loading profile..." />
       </ScreenLayout>
     );
@@ -177,15 +199,24 @@ export function MemberProfileScreen({ route, navigation }: Props) {
           ? profile.profileOrg?.legalName || "Employer / Agency"
           : "Talent portfolio"
       }
+      headerStyle="slim"
+      showTitle={false}
       footer={
         <View style={{ width: "100%", gap: 10 }}>
-          {!isSelf && !isOrg ? (
+          {canSendMessage ? (
             <PrimaryButton
               title={messagingBusy ? "Opening chat..." : "Send message"}
               onPress={onMessage}
               loading={messagingBusy}
               disabled={messagingBusy}
             />
+          ) : !isSelf ? (
+            <Text style={{ color: colors.muted, fontSize: 13, textAlign: "center" }}>
+              Messaging-only plan is talent-to-talent. Upgrade to Serious about job to message employers.
+            </Text>
+          ) : null}
+          {!isSelf && accessToken && inDiscover ? (
+            <SecondaryButton title="Add to list" onPress={() => setShowAddToList(true)} />
           ) : null}
           <SecondaryButton title="Back" onPress={() => navigation.goBack()} />
         </View>
@@ -204,19 +235,44 @@ export function MemberProfileScreen({ route, navigation }: Props) {
             ? `★ ${Number(profile.ratingAverage ?? 0).toFixed(1)}/5${
                 profile.ratingCount ? ` (${profile.ratingCount})` : ""
               } · ${profile.isAvailable === false ? "Not looking" : "Looking for work"}`
-            : profile.profileOrg?.legalName
+            : profile.profileOrg?.legalName ?? undefined
         }
         tags={tagTitles.slice(0, 8)}
         bio={profile.miniBio}
+        badge={profile.seriousAboutJob ? "SERIOUS ABOUT JOB" : null}
       />
 
       <ProfileSocialLinks links={profileLinksFromData(profile)} />
 
-      {isEmployer && !isOrg ? (
+      {showAddToList && accessToken && inDiscover ? (
+        <AddToListPanel
+          token={accessToken}
+          memberUserId={userId}
+          memberName={profile.fullName}
+          onClose={() => setShowAddToList(false)}
+        />
+      ) : null}
+
+      {profile.employerStats ? (
         <Card>
-          <SectionTitle title="Rate this talent" />
+          <SectionTitle title="Employer stats" />
+          <Text style={{ color: colors.text, fontSize: 14 }}>
+            Gigs posted: {profile.employerStats.gigsPosted}
+          </Text>
+          <Text style={{ color: colors.text, fontSize: 14 }}>
+            Gigs completed: {profile.employerStats.gigsCompleted}
+          </Text>
+          <Text style={{ color: colors.text, fontSize: 14 }}>
+            Average rating: {Number(profile.employerStats.avgRating ?? 0).toFixed(1)}/5
+          </Text>
+        </Card>
+      ) : null}
+
+      {canRate ? (
+        <Card>
+          <SectionTitle title={isEmployerProfile ? "Rate this employer" : "Rate this talent"} />
           <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 10 }}>
-            Only employers and agencies can rate talent (1–5/5). You can update your rating anytime.
+            1–5 stars. You can update your rating anytime.
           </Text>
           <StarRatingPicker value={selectedRating} onChange={setSelectedRating} />
           {selectedRating ? (
@@ -230,6 +286,27 @@ export function MemberProfileScreen({ route, navigation }: Props) {
             loading={ratingBusy}
             disabled={ratingBusy || !selectedRating}
           />
+        </Card>
+      ) : null}
+
+      {(profile.completedGigs ?? []).length > 0 ? (
+        <Card>
+          <SectionTitle title="Past gigs" />
+          <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 8 }}>
+            Completed work only, with client ratings.
+          </Text>
+          {(profile.completedGigs ?? []).map((gig) => (
+            <View key={gig.applicationId} style={{ marginBottom: 10 }}>
+              <Text style={{ color: colors.text, fontWeight: "700" }}>{gig.title}</Text>
+              <Text style={{ color: colors.muted, fontSize: 13 }}>
+                {gig.employerName}
+                {gig.completedAt ? ` · ${new Date(gig.completedAt).toLocaleDateString()}` : ""}
+              </Text>
+              <Text style={{ color: colors.text, fontSize: 13 }}>
+                Client rating: {gig.rating != null ? `${gig.rating}/5` : "Not rated"}
+              </Text>
+            </View>
+          ))}
         </Card>
       ) : null}
 

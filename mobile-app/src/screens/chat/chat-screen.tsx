@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -17,7 +17,8 @@ import type { ChatPushNotification } from "../../services/chat-socket";
 import {
   listSubscriptionPlans,
   messagingPlanForRoles,
-  purchasePlanWithPlayStore
+  purchasePlanWithPlayStore,
+  talentSeriousPlanCode
 } from "../../services/subscriptions.service";
 import { useAuth } from "../../state/auth-context";
 import { useChatSocket } from "../../state/chat-socket-context";
@@ -118,13 +119,13 @@ function InboxRow({
               minWidth: 20,
               height: 20,
               borderRadius: 10,
-              backgroundColor: "#0095F6",
+              backgroundColor: colors.primary,
               alignItems: "center",
               justifyContent: "center",
               paddingHorizontal: 5
             }}
           >
-            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "800" }}>
+            <Text style={{ color: colors.primaryOn, fontSize: 11, fontWeight: "800" }}>
               {(thread.unreadCount ?? 0) > 99 ? "99+" : thread.unreadCount}
             </Text>
           </View>
@@ -141,10 +142,14 @@ export function ChatScreen({ navigation }: Props) {
   const { refreshUnread } = useChatUnread();
   const [threads, setThreads] = useState<ThreadRow[]>([]);
   const [messagingActive, setMessagingActive] = useState(true);
-  const [isTalentFree, setIsTalentFree] = useState(false);
+  const [hasTalentMessaging, setHasTalentMessaging] = useState(true);
+  const [hasEmployerMessaging, setHasEmployerMessaging] = useState(true);
+  const [seriousAboutJob, setSeriousAboutJob] = useState(false);
   const [messagingPlanId, setMessagingPlanId] = useState<string | null>(null);
   const [messagingPlanCode, setMessagingPlanCode] = useState("MSG_EMPLOYER_300");
   const [planPrice, setPlanPrice] = useState(300);
+  const [seriousPlanId, setSeriousPlanId] = useState<string | null>(null);
+  const [employerPlanId, setEmployerPlanId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
 
@@ -158,18 +163,27 @@ export function ChatScreen({ navigation }: Props) {
       const [status, inbox, plans] = await Promise.all([
         getMessagingStatus(accessToken),
         listThreads(accessToken),
-        isEmployer && !isTalent ? listSubscriptionPlans() : Promise.resolve([])
+        listSubscriptionPlans()
       ]);
       setMessagingActive(Boolean(status.active));
-      setIsTalentFree(Boolean((status as { isTalentFree?: boolean }).isTalentFree));
+      setHasTalentMessaging(Boolean(status.hasTalentMessaging ?? status.active));
+      setHasEmployerMessaging(Boolean(status.hasEmployerMessaging));
+      setSeriousAboutJob(Boolean(status.seriousAboutJob));
       setThreads(inbox as ThreadRow[]);
       await refreshUnread();
-      if (isEmployer && !isTalent) {
-        const planCode = messagingPlanForRoles(user?.roles ?? []);
-        const plan = plans.find((p) => p.code === planCode);
-        setMessagingPlanId(plan?.id ?? null);
-        setMessagingPlanCode(plan?.code ?? planCode);
-        setPlanPrice(plan?.monthlyPriceInr ?? 300);
+      const employerPlan = plans.find((p) => p.code === "MSG_EMPLOYER_300");
+      const talentMsg = plans.find((p) => p.code === "MSG_MEMBER_100");
+      const serious = plans.find((p) => p.code === talentSeriousPlanCode());
+      setEmployerPlanId(employerPlan?.id ?? null);
+      if (isTalent) {
+        setMessagingPlanId(talentMsg?.id ?? null);
+        setMessagingPlanCode(talentMsg?.code ?? "MSG_MEMBER_100");
+        setPlanPrice(talentMsg?.monthlyPriceInr ?? 100);
+        setSeriousPlanId(serious?.id ?? null);
+      } else {
+        setMessagingPlanId(employerPlan?.id ?? null);
+        setMessagingPlanCode(employerPlan?.code ?? messagingPlanForRoles(user?.roles ?? []));
+        setPlanPrice(employerPlan?.monthlyPriceInr ?? 300);
       }
     } catch (error) {
       Alert.alert("Error", (error as Error).message);
@@ -229,6 +243,54 @@ export function ChatScreen({ navigation }: Props) {
     }
   };
 
+  const onPurchaseEmployerMessaging = async () => {
+    if (!accessToken || !employerPlanId) {
+      Alert.alert("Unavailable", "Employer messaging plan is not configured.");
+      return;
+    }
+    try {
+      setPurchasing(true);
+      await purchasePlanWithPlayStore(accessToken, {
+        id: employerPlanId,
+        code: "MSG_EMPLOYER_300",
+        isJobPostingPlan: false
+      });
+      Alert.alert(
+        "Messaging activated",
+        "Google Play payment confirmed. Two job slots are included for 90 days."
+      );
+      await load();
+    } catch (error) {
+      Alert.alert("Purchase failed", (error as Error).message);
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  const onPurchaseSerious = async () => {
+    if (!accessToken || !seriousPlanId) {
+      Alert.alert("Unavailable", "Serious about job plan is not configured.");
+      return;
+    }
+    try {
+      setPurchasing(true);
+      await purchasePlanWithPlayStore(accessToken, {
+        id: seriousPlanId,
+        code: talentSeriousPlanCode(),
+        isJobPostingPlan: false
+      });
+      Alert.alert(
+        "Serious about job",
+        "Messaging is included and the Serious about job badge is now on your profile."
+      );
+      await load();
+    } catch (error) {
+      Alert.alert("Purchase failed", (error as Error).message);
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
   const openThread = (thread: ThreadRow) => {
     navigation.navigate("ChatConversation", {
       threadId: thread.id,
@@ -239,32 +301,61 @@ export function ChatScreen({ navigation }: Props) {
     });
   };
 
-  const showSubscriptionGate = !messagingActive && isEmployer && !isTalent;
+  const showSerious = isTalent && !seriousAboutJob;
+  const showTalentMsg = isTalent && !hasTalentMessaging && !hasEmployerMessaging;
+  const showEmployerPlan = isEmployer && !hasEmployerMessaging;
+  const showSubscriptionGate = showSerious || showTalentMsg || showEmployerPlan;
 
   return (
     <ScreenLayout
       title="Messages"
       subtitle={
-        isTalentFree
+        messagingActive
           ? socketConnected
-            ? "Free messaging for talent"
+            ? "Private, in-app."
             : "Connecting…"
-          : socketConnected
-            ? "₹300/month · employers & agencies"
-            : "Connecting…"
+          : isTalent
+            ? "Messaging ₹100 · Serious about job ₹200"
+            : "₹300/month · includes 2 job slots"
       }
+      headerStyle="slim"
     >
       {showSubscriptionGate ? (
         <Card>
-          <SectionTitle title="Messaging subscription" />
-          <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 10 }}>
-            Employers and agencies need an active subscription to message talent.
-          </Text>
-          <PrimaryButton
-            title={purchasing ? "Purchasing..." : `Subscribe · ₹${planPrice}/month`}
-            onPress={onPurchaseMessaging}
-            disabled={purchasing || !messagingPlanId}
-          />
+          <SectionTitle title="Choose a plan" />
+          {showSerious || showTalentMsg ? (
+            <>
+              <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 10 }}>
+                Messaging (₹100) is talent-to-talent, including in-app job referrals. Serious about job (₹200) includes messaging, employer chat, and a public badge.
+              </Text>
+              {showSerious ? (
+                <PrimaryButton
+                  title={purchasing ? "Purchasing..." : "Serious about job · ₹200/month"}
+                  onPress={onPurchaseSerious}
+                  disabled={purchasing || !seriousPlanId}
+                />
+              ) : null}
+              {showTalentMsg ? (
+                <SecondaryButton
+                  title={purchasing ? "Purchasing..." : "Messaging only · ₹100/month"}
+                  onPress={onPurchaseMessaging}
+                  disabled={purchasing || !messagingPlanId}
+                />
+              ) : null}
+            </>
+          ) : null}
+          {showEmployerPlan ? (
+            <>
+              <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 10, marginTop: isTalent ? 12 : 0 }}>
+                Employers: messaging is ₹300/month and includes 2 free job slots.
+              </Text>
+              <PrimaryButton
+                title={purchasing ? "Purchasing..." : "Employer messaging · ₹300/month"}
+                onPress={onPurchaseEmployerMessaging}
+                disabled={purchasing || !employerPlanId}
+              />
+            </>
+          ) : null}
         </Card>
       ) : null}
 

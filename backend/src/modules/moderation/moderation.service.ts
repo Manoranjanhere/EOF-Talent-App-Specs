@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { FlagStatus } from "@prisma/client";
+import { FlagStatus } from "../../database/prisma-client";
 import { PrismaService } from "../../database/prisma.service";
 import { FlagUserDto } from "./dto/flag-user.dto";
 import { AdminActionDto } from "./dto/admin-action.dto";

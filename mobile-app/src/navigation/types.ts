@@ -7,6 +7,13 @@ export type MemberFlowParamList = {
 
 export type DiscoverStackParamList = MemberFlowParamList & {
   MemberSearch: undefined;
+  PeopleLists: undefined;
+  PeopleListDetail: { listId: string };
+};
+
+export type JobsStackParamList = MemberFlowParamList & {
+  JobBoard: undefined;
+  ReferJob: { jobId: string; jobTitle: string };
 };
 
 export type ChatStackParamList = {
@@ -49,7 +56,7 @@ export type PostJobStackParamList = {
 export type AppTabParamList = {
   Home: undefined;
   Discover: NavigatorScreenParams<DiscoverStackParamList> | undefined;
-  Jobs: undefined;
+  Jobs: NavigatorScreenParams<JobsStackParamList> | undefined;
   Chat: NavigatorScreenParams<ChatStackParamList> | undefined;
   Albums: NavigatorScreenParams<AlbumsStackParamList> | undefined;
   Profile: NavigatorScreenParams<ProfileStackParamList> | undefined;

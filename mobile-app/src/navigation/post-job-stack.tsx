@@ -1,4 +1,3 @@
-import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { JobPostScreen } from "../screens/jobs/job-post-screen";
 import { JobDetailScreen } from "../screens/jobs/job-detail-screen";

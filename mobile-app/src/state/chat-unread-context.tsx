@@ -1,10 +1,11 @@
-import React, {
+import {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
-  useState
+  useState,
+  type ReactNode
 } from "react";
 import { listThreads } from "../services/chat.service";
 import type { ChatPushNotification } from "../services/chat-socket";
@@ -18,7 +19,7 @@ type ChatUnreadContextValue = {
 
 const ChatUnreadContext = createContext<ChatUnreadContextValue | undefined>(undefined);
 
-export function ChatUnreadProvider({ children }: { children: React.ReactNode }) {
+export function ChatUnreadProvider({ children }: { children: ReactNode }) {
   const { accessToken, isAuthenticated } = useAuth();
   const { onPushNotification } = useChatSocket();
   const [totalUnread, setTotalUnread] = useState(0);

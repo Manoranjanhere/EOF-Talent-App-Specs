@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { GroupId } from "@eof/shared";
@@ -107,6 +107,7 @@ export function UserActionsScreen({ navigation }: { navigation?: any }) {
   return (
     <ScreenLayout
       title="Admin users"
+      headerStyle="slim"
       subtitle={
         isSuperAdmin
           ? "Block users · Super Admin can grant/revoke admin roles"

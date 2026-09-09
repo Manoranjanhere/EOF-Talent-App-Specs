@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, ActivityIndicator, Pressable, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { CachedMediaImage } from "../../components/cached-media-image";
@@ -77,7 +77,7 @@ export function TalentProfileScreen({ navigation }: { navigation?: any }) {
         getProfile(user.id, accessToken)
       ]);
       setTags(tagList);
-      const p = profile as any;
+      const p = profile;
       setFullName(p.fullName ?? "");
       setAge(p.age != null ? String(p.age) : "");
       setGender(normalizeGender(p.gender) || "Male");
@@ -198,6 +198,7 @@ export function TalentProfileScreen({ navigation }: { navigation?: any }) {
 
   return (
     <ScreenLayout
+      headerStyle="slim"
       title="Edit profile"
       subtitle="Photo required · skills · looking for work"
       footer={

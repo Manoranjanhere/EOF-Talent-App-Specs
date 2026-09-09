@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { AlbumVisibility } from "@prisma/client";
+import { AlbumVisibility } from "../../../database/prisma-client";
 import { IsEnum, IsString, Length } from "class-validator";
 
 export class CreateAlbumDto {

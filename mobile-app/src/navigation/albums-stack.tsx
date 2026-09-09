@@ -1,4 +1,3 @@
-import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { AlbumDetailScreen, AlbumsScreen } from "../screens/albums/albums-screen";
 import type { AlbumsStackParamList } from "./types";

@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { MediaAssetType } from "@prisma/client";
+import { MediaAssetType } from "../../../database/prisma-client";
 import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Min } from "class-validator";
 
 export class AddMediaAssetDto {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Image, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import {
@@ -92,14 +92,14 @@ function TalentPhotoGate({
       {photoUri ? (
         <Image
           source={{ uri: photoUri }}
-          style={{ width: 140, height: 140, borderRadius: 70, alignSelf: "center" }}
+          style={{ width: 148, height: 180, borderRadius: 24, alignSelf: "center" }}
         />
       ) : (
         <View
           style={{
-            width: 140,
-            height: 140,
-            borderRadius: 70,
+            width: 148,
+            height: 180,
+            borderRadius: 24,
             alignSelf: "center",
             backgroundColor: colors.inset,
             alignItems: "center",
@@ -152,7 +152,7 @@ function EmployerDetailsGate({
 
       if (!auth.accessToken || !auth.user?.id) return;
       try {
-        const profile = (await getProfile(auth.user.id, auth.accessToken)) as any;
+        const profile = await getProfile(auth.user.id, auth.accessToken);
         const org = profile.profileOrg;
         if (org?.orgTypeId) setOrgTypeId(org.orgTypeId);
         else if (profile.defaultOrgTypeId) setOrgTypeId(profile.defaultOrgTypeId);

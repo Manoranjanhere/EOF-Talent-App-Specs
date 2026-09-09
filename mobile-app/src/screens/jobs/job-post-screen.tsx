@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import { Alert, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import {
@@ -11,9 +11,11 @@ import {
   ScreenLayout,
   SecondaryButton,
   SectionTitle,
-  SegmentedControl
+  SegmentedControl,
+  SelectableChip
 } from "../../components/ui";
-import { postJob, listMyJobs } from "../../services/jobs.service";
+import { AppText } from "../../components/app-text";
+import { postJob, listMyJobs, repostJob, type EmployerJobSummary } from "../../services/jobs.service";
 import { listPublishedTags } from "../../services/profile.service";
 import {
   countAvailableJobSlots,
@@ -22,6 +24,7 @@ import {
   purchasePlanWithPlayStore
 } from "../../services/subscriptions.service";
 import { useAuth } from "../../state/auth-context";
+import { fonts } from "../../theme/typography";
 import { useTheme } from "../../theme/theme-context";
 import type { JobGenderValue } from "../../constants/gender";
 import { JOB_GENDER_OPTIONS } from "../../constants/gender";
@@ -61,11 +64,12 @@ export function JobPostScreen({ navigation }: Props) {
   const [primaryTagIds, setPrimaryTagIds] = useState<string[]>([]);
   const [secondaryTagIds, setSecondaryTagIds] = useState<string[]>([]);
   const [jobPlanId, setJobPlanId] = useState<string | null>(null);
-  const [jobPlanCode, setJobPlanCode] = useState("JOB_POST_300_90");
+  const [jobPlanCode, setJobPlanCode] = useState("JOB_POST_100_90");
   const [availableSlots, setAvailableSlots] = useState(0);
-  const [myJobs, setMyJobs] = useState<any[]>([]);
+  const [myJobs, setMyJobs] = useState<EmployerJobSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
+  const [repostingId, setRepostingId] = useState<string | null>(null);
 
   const loadMeta = useCallback(async () => {
     if (!accessToken) return;
@@ -77,9 +81,11 @@ export function JobPostScreen({ navigation }: Props) {
         listMyJobs(accessToken).catch(() => [])
       ]);
       setTags(tagList);
-      const jobPlan = plans.find((p) => p.isJobPostingPlan);
+      const jobPlan =
+        plans.find((p) => p.isJobPostingPlan && p.code === "JOB_POST_100_90") ||
+        plans.find((p) => p.isJobPostingPlan);
       setJobPlanId(jobPlan?.id ?? null);
-      setJobPlanCode(jobPlan?.code ?? "JOB_POST_300_90");
+      setJobPlanCode(jobPlan?.code ?? "JOB_POST_100_90");
       setAvailableSlots(countAvailableJobSlots(subs));
       setMyJobs(Array.isArray(jobs) ? jobs : []);
     } catch (error) {
@@ -102,7 +108,7 @@ export function JobPostScreen({ navigation }: Props) {
       setPurchasing(true);
       await purchasePlanWithPlayStore(accessToken, {
         id: jobPlanId,
-        code: jobPlanCode || "JOB_POST_300_90",
+        code: jobPlanCode || "JOB_POST_100_90",
         isJobPostingPlan: true
       });
       Alert.alert(
@@ -145,10 +151,10 @@ export function JobPostScreen({ navigation }: Props) {
     if (availableSlots <= 0) {
       Alert.alert(
         "Job slot required",
-        "Purchase a job slot (₹300 per job, 90-day listing) before publishing.",
+        "Purchase a job slot (₹100 per job, 90-day listing) before publishing.",
         [
           { text: "Cancel", style: "cancel" },
-          { text: "Purchase ₹300 slot", onPress: () => void onPurchaseSlot() }
+          { text: "Purchase ₹100 slot", onPress: () => void onPurchaseSlot() }
         ]
       );
       return;
@@ -186,21 +192,47 @@ export function JobPostScreen({ navigation }: Props) {
     }
   };
 
+  const onRepost = async (jobId: string, title: string) => {
+    if (!accessToken) return;
+    if (availableSlots <= 0) {
+      Alert.alert(
+        "Job slot required",
+        "Purchase a ₹100 slot (or use slots from messaging) to repost this job."
+      );
+      return;
+    }
+    try {
+      setRepostingId(jobId);
+      await repostJob(accessToken, jobId);
+      Alert.alert("Reposted", `"${title}" is live again for 90 days.`);
+      await loadMeta();
+    } catch (error) {
+      Alert.alert("Repost failed", (error as Error).message);
+    } finally {
+      setRepostingId(null);
+    }
+  };
+
+  const now = Date.now();
+  const activeJobs = myJobs.filter((job) => new Date(job.validTill).getTime() >= now);
+  const expiredJobs = myJobs.filter((job) => new Date(job.validTill).getTime() < now);
+
   return (
     <ScreenLayout
       title="Post a job"
-      subtitle="₹300 per job · 90-day listing · agencies & employers"
+      subtitle="₹100 · 90 days on the board"
+      headerStyle="slim"
     >
       <Card>
         <SectionTitle title="Pricing" />
-        <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 8 }}>
-          Each job costs ₹300 and stays on the job board for 3 months (90 days).
-        </Text>
-        <Text style={{ color: colors.text, fontSize: 14, fontWeight: "600", marginBottom: 10 }}>
+        <AppText variant="meta" style={{ color: colors.muted, marginBottom: 8 }}>
+          Each job costs ₹100 and stays on the board for 90 days. Employer messaging is ₹300/month and includes 2 free job slots.
+        </AppText>
+        <AppText style={{ color: colors.text, fontFamily: fonts.sansSemi, marginBottom: 10 }}>
           Available slots: {availableSlots}
-        </Text>
+        </AppText>
         <SecondaryButton
-          title={purchasing ? "Purchasing..." : "Buy job slot · ₹300"}
+          title={purchasing ? "Purchasing..." : "Buy job slot · ₹100"}
           onPress={onPurchaseSlot}
           disabled={purchasing || !jobPlanId}
         />
@@ -222,7 +254,9 @@ export function JobPostScreen({ navigation }: Props) {
           multiline
           style={{ minHeight: 100, textAlignVertical: "top" }}
         />
-        <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 6 }}>Gender</Text>
+        <AppText variant="meta" style={{ color: colors.muted, marginBottom: 6 }}>
+          Gender
+        </AppText>
         <SegmentedControl value={gender} onChange={setGender} options={JOB_GENDER_OPTIONS} />
         <View style={{ flexDirection: "row", gap: 10 }}>
           <View style={{ flex: 1 }}>
@@ -271,56 +305,30 @@ export function JobPostScreen({ navigation }: Props) {
       <Card>
         <SectionTitle title="Primary skills (max 5)" />
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {tags.map((tag) => {
-            const selected = primaryTagIds.includes(tag.id);
-            const disabled = secondaryTagIds.includes(tag.id);
-            return (
-              <Pressable
-                key={`p-${tag.id}`}
-                disabled={disabled}
-                onPress={() => setPrimaryTagIds((prev) => toggleId(prev, tag.id, 5))}
-                style={{
-                  opacity: disabled ? 0.4 : 1,
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  borderRadius: 999,
-                  borderWidth: 1,
-                  borderColor: selected ? colors.primary : colors.border,
-                  backgroundColor: selected ? colors.primarySoft : colors.card
-                }}
-              >
-                <Text style={{ color: colors.text, fontSize: 13 }}>{tag.title}</Text>
-              </Pressable>
-            );
-          })}
+          {tags.map((tag) => (
+            <SelectableChip
+              key={`p-${tag.id}`}
+              label={tag.title}
+              selected={primaryTagIds.includes(tag.id)}
+              disabled={secondaryTagIds.includes(tag.id)}
+              onPress={() => setPrimaryTagIds((prev) => toggleId(prev, tag.id, 5))}
+            />
+          ))}
         </View>
       </Card>
 
       <Card>
         <SectionTitle title="Secondary skills (max 5)" />
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {tags.map((tag) => {
-            const selected = secondaryTagIds.includes(tag.id);
-            const disabled = primaryTagIds.includes(tag.id);
-            return (
-              <Pressable
-                key={`s-${tag.id}`}
-                disabled={disabled}
-                onPress={() => setSecondaryTagIds((prev) => toggleId(prev, tag.id, 5))}
-                style={{
-                  opacity: disabled ? 0.4 : 1,
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  borderRadius: 999,
-                  borderWidth: 1,
-                  borderColor: selected ? colors.primary : colors.border,
-                  backgroundColor: selected ? colors.primarySoft : colors.card
-                }}
-              >
-                <Text style={{ color: colors.text, fontSize: 13 }}>{tag.title}</Text>
-              </Pressable>
-            );
-          })}
+          {tags.map((tag) => (
+            <SelectableChip
+              key={`s-${tag.id}`}
+              label={tag.title}
+              selected={secondaryTagIds.includes(tag.id)}
+              disabled={primaryTagIds.includes(tag.id)}
+              onPress={() => setSecondaryTagIds((prev) => toggleId(prev, tag.id, 5))}
+            />
+          ))}
         </View>
       </Card>
 
@@ -331,13 +339,13 @@ export function JobPostScreen({ navigation }: Props) {
         disabled={loading || purchasing}
       />
 
-      {myJobs.length > 0 ? (
+      {activeJobs.length > 0 ? (
         <Card>
-          <SectionTitle title="Your job board" />
-          <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 10 }}>
-            Tap a job to view details and applicants.
-          </Text>
-          {myJobs.map((job) => (
+          <SectionTitle title="Active jobs" />
+          <AppText variant="meta" style={{ color: colors.muted, marginBottom: 10 }}>
+            Tap a job to view applicants and update their status.
+          </AppText>
+          {activeJobs.map((job) => (
             <ListCard
               key={job.id}
               title={job.title}
@@ -355,6 +363,35 @@ export function JobPostScreen({ navigation }: Props) {
       ) : (
         <EmptyState message="No active job listings yet." />
       )}
+
+      {expiredJobs.length > 0 ? (
+        <Card>
+          <SectionTitle title="Expired jobs" />
+          <AppText variant="meta" style={{ color: colors.muted, marginBottom: 10 }}>
+            Repost uses one job slot and copies the same details.
+          </AppText>
+          {expiredJobs.map((job) => (
+            <View key={job.id} style={{ marginBottom: 10, gap: 8 }}>
+              <ListCard
+                title={job.title}
+                subtitle={job.miniDescription}
+                meta={[
+                  `Expired ${new Date(job.validTill).toLocaleDateString()}`,
+                  [job.city, job.country].filter(Boolean).join(", ") || "Location N/A"
+                ]}
+                badge="EXPIRED"
+                onPress={() => navigation.navigate("JobDetail", { jobId: job.id })}
+              />
+              <PrimaryButton
+                title={repostingId === job.id ? "Reposting…" : "Repost this job"}
+                onPress={() => void onRepost(job.id, job.title)}
+                loading={repostingId === job.id}
+                disabled={Boolean(repostingId)}
+              />
+            </View>
+          ))}
+        </Card>
+      ) : null}
     </ScreenLayout>
   );
 }

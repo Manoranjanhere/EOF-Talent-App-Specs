@@ -13,6 +13,8 @@ export type PlayPurchaseResult = {
 const DEFAULT_SKUS: Record<string, string> = {
   MSG_MEMBER_100: "eof_msg_member_100",
   MSG_EMPLOYER_300: "eof_msg_employer_300",
+  TALENT_SERIOUS_JOB_200: "eof_talent_serious_200",
+  JOB_POST_100_90: "eof_job_post_100",
   JOB_POST_300_90: "eof_job_post_300"
 };
 

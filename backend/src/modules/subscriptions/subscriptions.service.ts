@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException
 } from "@nestjs/common";
-import { PurchaseType } from "@prisma/client";
+import { PurchaseType } from "../../database/prisma-client";
 import { GroupId } from "@eof/shared";
 import { PrismaService } from "../../database/prisma.service";
 import { CreatePlanDto } from "./dto/create-plan.dto";
@@ -130,7 +130,39 @@ export class SubscriptionsService {
       }
     });
 
+    if (plan.code === "MSG_EMPLOYER_300") {
+      await this.grantCompensatoryJobSlots(userId, 2, audit);
+    }
+
     return subscription;
+  }
+
+  private async grantCompensatoryJobSlots(
+    userId: string,
+    count: number,
+    audit: AuditData
+  ) {
+    const jobPlan = await this.prisma.subscriptionPlanMaster.findFirst({
+      where: { code: "JOB_POST_100_90", isActive: true, isJobPostingPlan: true }
+    });
+    if (!jobPlan) return;
+
+    const now = new Date();
+    const expiry = new Date(now.getTime() + jobPlan.validityDays * 24 * 60 * 60 * 1000);
+    for (let i = 0; i < count; i++) {
+      await this.prisma.userSubscription.create({
+        data: {
+          userId,
+          planId: jobPlan.id,
+          purchaseType: PurchaseType.COMPENSATORY,
+          purchaseDate: now,
+          originalExpiry: expiry,
+          lastExpiry: expiry,
+          lastUpdateIp: audit.ip,
+          lastUpdateBy: audit.updatedBy
+        }
+      });
+    }
   }
 
   getUserSubscriptions(userId: string) {

@@ -24,23 +24,55 @@ export function createAlbum(
   token: string,
   payload: { title: string; visibility: "PUBLIC" | "PRIVATE" }
 ) {
-  return apiRequest("/albums", { method: "POST", token, body: payload });
+  return apiRequest<AlbumSummary>("/albums", { method: "POST", token, body: payload });
 }
 
+export type AlbumAsset = {
+  id: string;
+  assetType?: string;
+  thumbnailUrl?: string | null;
+  url?: string | null;
+  objectKey?: string;
+  thumbnailObjectKey?: string | null;
+};
+
+export type AlbumAccessGrant = {
+  id: string;
+  grantedToUserId?: string;
+  grantedDays?: number;
+  expiresAt?: string;
+  grantedToUser?: {
+    fullName?: string;
+    email?: string | null;
+    mobileNumber?: string | null;
+  };
+};
+
+export type AlbumSummary = {
+  id: string;
+  title: string;
+  visibility?: string;
+  assets?: AlbumAsset[];
+  accessGrants?: AlbumAccessGrant[];
+  _count?: { assets?: number; accessGrants?: number };
+};
+
+export type AlbumDetail = AlbumSummary;
+
 export function listMyAlbums(token: string) {
-  return apiRequest("/albums/mine", { token });
+  return apiRequest<AlbumSummary[]>("/albums/mine", { token });
 }
 
 export function listUserAlbums(token: string, userId: string) {
-  return apiRequest(`/albums/user/${userId}`, { token });
+  return apiRequest<AlbumSummary[]>(`/albums/user/${userId}`, { token });
 }
 
 export function getAlbum(token: string, albumId: string) {
-  return apiRequest(`/albums/${albumId}`, { token });
+  return apiRequest<AlbumDetail>(`/albums/${albumId}`, { token });
 }
 
 export function getAlbumAsViewer(token: string, albumId: string) {
-  return apiRequest(`/albums/${albumId}/view`, { token });
+  return apiRequest<AlbumDetail>(`/albums/${albumId}/view`, { token });
 }
 
 export function deleteAlbum(token: string, albumId: string) {

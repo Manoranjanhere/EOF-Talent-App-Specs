@@ -1,5 +1,5 @@
-import React from "react";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
+import { useTheme } from "../theme/theme-context";
 
 type IconProps = {
   color?: string;
@@ -124,6 +124,25 @@ export function ReportsIcon({ color = "#1D4ED8", size = 24 }: IconProps) {
   );
 }
 
+export function SkillsIcon({ color = "#1D4ED8", size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M5 8.5h6.5M5 15.5h4"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+      <Path
+        d="M14.5 6.5l3 3-6.2 6.2H8.2v-3.1L14.5 6.5z"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 export function UsersIcon({ color = "#1D4ED8", size = 24 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -147,12 +166,14 @@ export function UsersIcon({ color = "#1D4ED8", size = 24 }: IconProps) {
 
 /** Brand mark — E lettermark */
 export function AppLogoIcon({ size = 36 }: { size?: number }) {
+  const { colors } = useTheme();
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64" fill="none">
-      <Rect width="64" height="64" rx="14" fill="#1D4ED8" />
+      <Rect width="64" height="64" rx="16" fill={colors.primary} />
+      <Rect x="4" y="4" width="56" height="56" rx="13" stroke={colors.gold} strokeWidth="2.5" />
       <Path
         d="M18 16h28v5.5H24.5v6.5H43v5.5H24.5v7H46.5V46H18V16z"
-        fill="#FFFFFF"
+        fill={colors.primaryOn}
       />
     </Svg>
   );
@@ -241,6 +262,63 @@ export function SendIcon({ color = "#fff", size = 24 }: IconProps) {
   );
 }
 
+export function FilterIcon({ color = "#1D4ED8", size = 22 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M4 6h16M7 12h10M10 18h4"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
+export function BookmarkIcon({ color = "#1D4ED8", size = 20 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M7 4h10a1 1 0 0 1 1 1v15l-6-3.4L6 20V5a1 1 0 0 1 1-1z"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function FlagIcon({ color = "#1D4ED8", size = 20 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M6 21V4" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Path
+        d="M6 5h11l-2 3.5L17 12H6"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function StarIcon({
+  color = "#C6A36A",
+  size = 22,
+  filled = false
+}: IconProps & { filled?: boolean }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? color : "none"}>
+      <Path
+        d="M12 3.6l2.4 5.1 5.6.7-4.1 3.8 1.1 5.5L12 16.2 6.9 18.7l1.1-5.5L4 9.4l5.6-.7L12 3.6z"
+        stroke={color}
+        strokeWidth={1.6}
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 export const tabIcons = {
   Home: HomeIcon,
   Discover: DiscoverIcon,
@@ -251,7 +329,8 @@ export const tabIcons = {
   Help: HelpIcon,
   PostJob: PostJobIcon,
   Reports: ReportsIcon,
-  Users: UsersIcon
+  Users: UsersIcon,
+  Skills: SkillsIcon
 } as const;
 
 export type TabRouteName = keyof typeof tabIcons;

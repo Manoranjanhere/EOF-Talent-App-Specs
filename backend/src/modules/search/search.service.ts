@@ -1,6 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { GroupId } from "@eof/shared";
+import { resolveProfilePhotos } from "../../common/profile-photos";
 import { PrismaService } from "../../database/prisma.service";
+import { StorageService } from "../storage/storage.service";
 import { MemberSearchQuery } from "./dto/member-search.query";
 import { JobSearchQuery } from "./dto/job-search.query";
 
@@ -8,12 +10,16 @@ const ADMIN_GROUP_IDS = [GroupId.Admin, GroupId.TeamAdmin, GroupId.SuperAdmin];
 
 @Injectable()
 export class SearchService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService
+  ) {}
 
   async searchMembers(query: MemberSearchQuery) {
     const page = query.page ?? 1;
     const pageSize = Math.min(query.pageSize ?? 20, 100);
     const tagIds = query.tagIds?.split(",").map((tag) => tag.trim()).filter(Boolean) ?? [];
+    const name = query.q?.trim();
 
     const where = {
       isActive: true,
@@ -27,6 +33,7 @@ export class SearchService {
           }
         }
       },
+      ...(name ? { fullName: { contains: name, mode: "insensitive" as const } } : {}),
       city: query.city,
       country: query.country,
       gender: query.gender,
@@ -66,19 +73,34 @@ export class SearchService {
       this.prisma.userAccount.count({ where })
     ]);
 
+    const [seriousIds, photos] = await Promise.all([
+      this.activeSeriousJobUserIds(items.map((item) => item.id)),
+      resolveProfilePhotos(
+        this.prisma,
+        this.storage,
+        items.map((item) => item.id)
+      )
+    ]);
+
     return {
       page,
       pageSize,
       total,
-      cards: items.map((item) => ({
-        id: item.id,
-        title: item.fullName,
-        subtitle: `${item.city ?? ""} ${item.country ?? ""}`.trim(),
-        rating: item.ratingAverage,
-        isAvailable: item.isAvailable,
-        tags: item.profileTags.map((link) => link.tag.title),
-        roleIds: item.roles.filter((r) => r.isActive).map((r) => r.groupId)
-      }))
+      cards: items.map((item) => {
+        const photo = photos.get(item.id);
+        return {
+          id: item.id,
+          title: item.fullName,
+          subtitle: `${item.city ?? ""} ${item.country ?? ""}`.trim(),
+          rating: item.ratingAverage,
+          isAvailable: item.isAvailable,
+          tags: item.profileTags.map((link) => link.tag.title),
+          roleIds: item.roles.filter((r) => r.isActive).map((r) => r.groupId),
+          seriousAboutJob: seriousIds.has(item.id),
+          profilePhotoUrl: photo?.url ?? null,
+          profilePhotoObjectKey: photo?.objectKey ?? null
+        };
+      })
     };
   }
 
@@ -137,6 +159,12 @@ export class SearchService {
           )
         : new Set<string>();
 
+    const posterPhotos = await resolveProfilePhotos(
+      this.prisma,
+      this.storage,
+      items.map((item) => item.postedBy.id)
+    );
+
     return {
       page,
       pageSize,
@@ -152,8 +180,25 @@ export class SearchService {
         validTill: item.validTill,
         tags: item.tags.map((tagLink) => tagLink.tag.title),
         postedBy: item.postedBy.fullName,
+        postedByUserId: item.postedBy.id,
+        postedByPhotoUrl: posterPhotos.get(item.postedBy.id)?.url ?? null,
+        postedByPhotoObjectKey: posterPhotos.get(item.postedBy.id)?.objectKey ?? null,
         hasApplied: appliedJobIds.has(item.id)
       }))
     };
+  }
+
+  private async activeSeriousJobUserIds(userIds: string[]) {
+    if (userIds.length === 0) return new Set<string>();
+    const rows = await this.prisma.userSubscription.findMany({
+      where: {
+        userId: { in: userIds },
+        isActive: true,
+        lastExpiry: { gte: new Date() },
+        plan: { code: "TALENT_SERIOUS_JOB_200", isActive: true }
+      },
+      select: { userId: true }
+    });
+    return new Set(rows.map((row) => row.userId));
   }
 }

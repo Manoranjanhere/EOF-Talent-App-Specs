@@ -11,6 +11,8 @@ build
 .env.local
 coverage
 backend/prisma/dev.db
+*.tsbuildinfo
+backend/generated
 backend/tsconfig.build.tsbuildinfo
 backend/dist
 mobile-app/android/local.properties

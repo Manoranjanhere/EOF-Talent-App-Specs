@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -33,7 +33,9 @@ import {
   listMyAlbums,
   mediaUrl,
   revokeAlbumAccess,
-  uploadAlbumAsset
+  uploadAlbumAsset,
+  type AlbumDetail,
+  type AlbumSummary
 } from "../../services/albums.service";
 import { generateVideoThumbnail } from "../../services/video-thumbnail";
 import { useAuth } from "../../state/auth-context";
@@ -61,14 +63,14 @@ export function AlbumsScreen({ navigation }: { navigation?: any }) {
   const { colors } = useTheme();
   const [title, setTitle] = useState("");
   const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
-  const [albums, setAlbums] = useState<any[]>([]);
+  const [albums, setAlbums] = useState<AlbumSummary[]>([]);
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = async () => {
     if (!accessToken) return;
     try {
-      setAlbums((await listMyAlbums(accessToken)) as any[]);
+      setAlbums(await listMyAlbums(accessToken));
     } catch (error) {
       Alert.alert("Error", (error as Error).message);
     }
@@ -84,10 +86,10 @@ export function AlbumsScreen({ navigation }: { navigation?: any }) {
     if (!accessToken || !title.trim()) return;
     try {
       setCreating(true);
-      const album = (await createAlbum(accessToken, {
+      const album = await createAlbum(accessToken, {
         title: title.trim(),
         visibility
-      })) as any;
+      });
       setTitle("");
       await load();
       navigation?.navigate?.("AlbumDetail", { albumId: album.id });
@@ -124,8 +126,8 @@ export function AlbumsScreen({ navigation }: { navigation?: any }) {
 
   return (
     <ScreenLayout
-      title="Photo albums"
-      subtitle="Max 5 albums · 10 items (9 photos + 1 video) · Public/Private"
+      title="Lookbook"
+      subtitle="Five albums · nine stills and one reel each"
     >
       <Card>
         <SectionTitle title="Create album" />
@@ -246,7 +248,7 @@ export function AlbumDetailScreen({ route, navigation }: AlbumDetailProps) {
   const albumId = route.params.albumId;
   const { accessToken } = useAuth();
   const { colors } = useTheme();
-  const [album, setAlbum] = useState<any>(null);
+  const [album, setAlbum] = useState<AlbumDetail | null>(null);
   const [grantedTo, setGrantedTo] = useState("");
   const [grantDaysKey, setGrantDaysKey] = useState<"30" | "60" | "90">("30");
   const [busy, setBusy] = useState(false);
@@ -293,7 +295,7 @@ export function AlbumDetailScreen({ route, navigation }: AlbumDetailProps) {
 
   // Backfill thumbnails for older videos that have no stored thumbnail.
   useEffect(() => {
-    const assets = (album?.assets ?? []) as any[];
+    const assets = album?.assets ?? [];
     assets
       .filter((a) => a.assetType === "VIDEO" && !a.thumbnailUrl && !localVideoThumbs[a.id])
       .forEach((asset) => {
@@ -497,7 +499,8 @@ export function AlbumDetailScreen({ route, navigation }: AlbumDetailProps) {
   return (
     <ScreenLayout
       title={album.title}
-      subtitle={`${album.visibility} · ${(album.assets ?? []).length}/10 media`}
+      headerStyle="slim"
+      subtitle={`${album.visibility} · ${(album.assets ?? []).length}/10`}
       footer={
         <View style={{ width: "100%", gap: 10 }}>
           <DangerButton title="Delete album" onPress={onDeleteAlbum} />
@@ -596,7 +599,7 @@ export function AlbumDetailScreen({ route, navigation }: AlbumDetailProps) {
             </View>
           ))}
 
-          {(album.assets ?? []).map((asset: any) => {
+          {(album.assets ?? []).map((asset) => {
             const isVideo = asset.assetType === "VIDEO";
             const thumbUri =
               mediaUrl(asset.thumbnailUrl) ||
@@ -727,14 +730,14 @@ export function AlbumDetailScreen({ route, navigation }: AlbumDetailProps) {
           {(album.accessGrants ?? []).length === 0 ? (
             <EmptyState message="No active access grants." />
           ) : (
-            (album.accessGrants ?? []).map((grant: any) => (
+            (album.accessGrants ?? []).map((grant) => (
               <View key={grant.id} style={{ marginBottom: 10, gap: 6 }}>
                 <ListCard
-                  title={grant.grantedToUser?.fullName ?? grant.grantedToUserId}
+                  title={grant.grantedToUser?.fullName ?? grant.grantedToUserId ?? "Member"}
                   meta={[
                     grant.grantedToUser?.email || grant.grantedToUser?.mobileNumber || "",
-                    `Expires ${new Date(grant.expiresAt).toLocaleDateString()}`,
-                    `${grant.grantedDays} days`
+                    `Expires ${grant.expiresAt ? new Date(grant.expiresAt).toLocaleDateString() : "—"}`,
+                    `${grant.grantedDays ?? "—"} days`
                   ]}
                   badge="ACTIVE"
                 />

@@ -1,6 +1,7 @@
-import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { CachedMediaImage } from "./cached-media-image";
+import { mediaUrl } from "../services/albums.service";
+import { fonts } from "../theme/typography";
 import { useTheme } from "../theme/theme-context";
 
 export function ChatUserAvatar({
@@ -19,6 +20,7 @@ export function ChatUserAvatar({
   const { colors } = useTheme();
   const initial = (name || "?").slice(0, 1).toUpperCase();
   const fontSize = Math.max(12, Math.round(size * 0.42));
+  const resolved = mediaUrl(uri);
 
   const avatar = (
     <View
@@ -32,10 +34,12 @@ export function ChatUserAvatar({
         justifyContent: "center"
       }}
     >
-      {uri ? (
-        <CachedMediaImage uri={uri} cacheKey={cacheKey} style={{ width: "100%", height: "100%" }} />
+      {resolved ? (
+        <CachedMediaImage uri={resolved} cacheKey={cacheKey} style={{ width: "100%", height: "100%" }} />
       ) : (
-        <Text style={{ color: colors.primary, fontWeight: "800", fontSize: fontSize }}>{initial}</Text>
+        <Text style={{ color: colors.primary, fontWeight: "700", fontSize: fontSize, fontFamily: fonts.serifBold }}>
+          {initial}
+        </Text>
       )}
     </View>
   );

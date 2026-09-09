@@ -1,4 +1,3 @@
-import React from "react";
 import { Text } from "react-native";
 import { LinkButton, ScreenLayout, SectionTitle } from "../../components/ui";
 import { useTheme } from "../../theme/theme-context";
@@ -7,6 +6,7 @@ export function TermsOfServiceScreen({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
   return (
     <ScreenLayout
+      headerStyle="slim"
       title="Terms of Service"
       subtitle="Rules for using EOF Talent"
       footer={<LinkButton title="Back" onPress={() => navigation.goBack()} />}

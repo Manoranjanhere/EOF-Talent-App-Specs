@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Image, Pressable, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import {
@@ -53,7 +53,7 @@ export function OrgProfileScreen({ navigation }: { navigation?: any }) {
         if (types[0]) setOrgTypeId(types[0].id);
         return;
       }
-      const profile = (await getProfile(user.id, accessToken)) as any;
+      const profile = await getProfile(user.id, accessToken);
       const org = profile.profileOrg;
       setOrgTypeId(org?.orgTypeId ?? profile.defaultOrgTypeId ?? types[0]?.id ?? null);
       setLegalName(org?.legalName ?? "");
@@ -158,6 +158,7 @@ export function OrgProfileScreen({ navigation }: { navigation?: any }) {
 
   return (
     <ScreenLayout
+      headerStyle="slim"
       title="Edit company"
       subtitle="Photo required · company details for Employer / Agency"
       footer={

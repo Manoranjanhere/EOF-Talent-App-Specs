@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Alert, Text } from "react-native";
 import {
   LabeledInput,
@@ -131,7 +131,7 @@ export function ForgotPasswordScreen({ navigation }: { navigation: any }) {
   return (
     <ScreenLayout
       title="Forgot password"
-      subtitle="Verify your mobile with OTP, then set a new password."
+      subtitle="Verify your mobile, then set a new password."
       headerRight={<ThemeToggleButton />}
       footer={
         <LinkButton title="Back to sign in" onPress={() => navigation.goBack()} />

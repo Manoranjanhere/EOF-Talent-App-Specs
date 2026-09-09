@@ -1,4 +1,3 @@
-import React from "react";
 import { Alert, Linking, Pressable, Text, View } from "react-native";
 import { useTheme } from "../theme/theme-context";
 

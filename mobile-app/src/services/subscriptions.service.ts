@@ -80,3 +80,7 @@ export function messagingPlanForRoles(roles: number[]) {
   if (roles.includes(GroupId.TalentEmployerOrAgency)) return "MSG_EMPLOYER_300";
   return "MSG_MEMBER_100";
 }
+
+export function talentSeriousPlanCode() {
+  return "TALENT_SERIOUS_JOB_200";
+}

@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Alert } from "react-native";
 import {
+  Card,
   LabeledInput,
   LegalFinePrint,
   LinkButton,
@@ -59,7 +60,7 @@ export function LoginScreen({ navigation }: { navigation: any }) {
   return (
     <ScreenLayout
       title="Welcome back"
-      subtitle="Sign in with email or phone — password only."
+      subtitle="The stage remembers you."
       headerRight={<ThemeToggleButton />}
       footer={
         <>
@@ -71,6 +72,7 @@ export function LoginScreen({ navigation }: { navigation: any }) {
         </>
       }
     >
+      <Card>
       <SegmentedControl
         value={mode}
         onChange={setMode}
@@ -118,6 +120,7 @@ export function LoginScreen({ navigation }: { navigation: any }) {
         disabled={loading}
         loading={loading}
       />
+      </Card>
     </ScreenLayout>
   );
 }

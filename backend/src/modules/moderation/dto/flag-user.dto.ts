@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { FlagReason } from "@prisma/client";
+import { FlagReason } from "../../../database/prisma-client";
 import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from "class-validator";
 
 export class FlagUserDto {

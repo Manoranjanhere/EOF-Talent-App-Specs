@@ -2,7 +2,7 @@ import {
   BadRequestException,
   Injectable
 } from "@nestjs/common";
-import { MediaAssetType } from "@prisma/client";
+import { MediaAssetType } from "../../database/prisma-client";
 import { PrismaService } from "../../database/prisma.service";
 import { StorageService } from "../storage/storage.service";
 import { PresignUploadDto } from "./dto/presign-upload.dto";

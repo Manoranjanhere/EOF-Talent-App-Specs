@@ -1,4 +1,4 @@
-import { PrismaClient, PurchaseType } from "@prisma/client";
+import { PrismaClient, PurchaseType } from "../src/database/prisma-client";
 
 const prisma = new PrismaClient();
 
@@ -45,14 +45,23 @@ async function main() {
 
   const tags: Array<{ slug: string; title: string }> = [
     { slug: "model", title: "Model" },
+    { slug: "fashion-model", title: "Fashion Model" },
     { slug: "actor", title: "Actor" },
     { slug: "singer", title: "Singer" },
-    { slug: "makeup-artist", title: "Makeup Artist" },
-    { slug: "camera-professional", title: "Camera Professional" },
+    { slug: "makeup-artist", title: "Make Up Artist" },
+    { slug: "camera-professional", title: "Camera Artist" },
+    { slug: "sound-artist", title: "Sound Artist" },
+    { slug: "script-editor", title: "Script Editor" },
+    { slug: "script-writer", title: "Script Writer" },
+    { slug: "content-creator", title: "Content Creator" },
+    { slug: "influencer", title: "Influencer" },
+    { slug: "production", title: "Production" },
     { slug: "musician", title: "Musician" },
     { slug: "song-writer", title: "Song Writer" },
-    { slug: "script-writer", title: "Script Writer" },
-    { slug: "music-composer", title: "Music Composer" }
+    { slug: "music-composer", title: "Music Composer" },
+    { slug: "dancer", title: "Dancer" },
+    { slug: "stylist", title: "Stylist" },
+    { slug: "editor", title: "Editor" }
   ];
   for (const tag of tags) {
     await prisma.tagMaster.upsert({
@@ -68,6 +77,8 @@ async function main() {
   await prisma.subscriptionPlanMaster.upsert({
     where: { code: "MSG_MEMBER_100" },
     update: {
+      title: "Messaging - Talent",
+      description: "₹100/month · in-app messages and referrals with other talent (not employers)",
       monthlyPriceInr: 100,
       validityDays: 30,
       targetGroupId: 1
@@ -75,10 +86,35 @@ async function main() {
     create: {
       code: "MSG_MEMBER_100",
       title: "Messaging - Talent",
-      description: "₹100/month · message talent, employers, and agencies",
+      description: "₹100/month · in-app messages and referrals with other talent (not employers)",
       monthlyPriceInr: 100,
       validityDays: 30,
       targetGroupId: 1
+    }
+  });
+
+  await prisma.subscriptionPlanMaster.upsert({
+    where: { code: "TALENT_SERIOUS_JOB_200" },
+    update: {
+      title: "Serious about job",
+      description: "₹200/month · messaging included · Serious about job badge on your profile",
+      monthlyPriceInr: 200,
+      validityDays: 30,
+      targetGroupId: 1,
+      isJobPostingPlan: false,
+      published: true,
+      isActive: true
+    },
+    create: {
+      code: "TALENT_SERIOUS_JOB_200",
+      title: "Serious about job",
+      description: "₹200/month · messaging included · Serious about job badge on your profile",
+      monthlyPriceInr: 200,
+      validityDays: 30,
+      targetGroupId: 1,
+      isJobPostingPlan: false,
+      published: true,
+      isActive: true
     }
   });
 
@@ -87,12 +123,13 @@ async function main() {
     update: {
       monthlyPriceInr: 300,
       validityDays: 30,
-      targetGroupId: 2
+      targetGroupId: 2,
+      description: "₹300/month · message talent · includes 2 free job slots"
     },
     create: {
       code: "MSG_EMPLOYER_300",
       title: "Messaging - Employer/Agency",
-      description: "₹300/month · message talent and other members",
+      description: "₹300/month · message talent · includes 2 free job slots",
       monthlyPriceInr: 300,
       validityDays: 30,
       targetGroupId: 2
@@ -102,16 +139,39 @@ async function main() {
   await prisma.subscriptionPlanMaster.upsert({
     where: { code: "JOB_POST_300_90" },
     update: {
-      monthlyPriceInr: 300,
-      validityDays: 90,
-      targetGroupId: 2,
-      isJobPostingPlan: true
+      published: false,
+      isActive: false
     },
     create: {
       code: "JOB_POST_300_90",
-      title: "Job Posting",
-      description: "₹300 per job · 90-day listing on the job board",
+      title: "Job Posting (legacy)",
+      description: "Retired — use JOB_POST_100_90",
       monthlyPriceInr: 300,
+      validityDays: 90,
+      targetGroupId: 2,
+      isJobPostingPlan: true,
+      published: false,
+      isActive: false
+    }
+  });
+
+  await prisma.subscriptionPlanMaster.upsert({
+    where: { code: "JOB_POST_100_90" },
+    update: {
+      monthlyPriceInr: 100,
+      validityDays: 90,
+      targetGroupId: 2,
+      isJobPostingPlan: true,
+      published: true,
+      isActive: true,
+      title: "Job Posting",
+      description: "₹100 per job · 90-day listing on the job board"
+    },
+    create: {
+      code: "JOB_POST_100_90",
+      title: "Job Posting",
+      description: "₹100 per job · 90-day listing on the job board",
+      monthlyPriceInr: 100,
       validityDays: 90,
       targetGroupId: 2,
       isJobPostingPlan: true

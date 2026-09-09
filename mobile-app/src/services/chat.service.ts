@@ -7,6 +7,10 @@ export function getMessagingStatus(token: string) {
     isTalentFree?: boolean;
     planCode: string | null;
     expiresAt: string | null;
+    canMessageEmployers?: boolean;
+    seriousAboutJob?: boolean;
+    hasTalentMessaging?: boolean;
+    hasEmployerMessaging?: boolean;
   }>("/chat/messaging-status", { token });
 }
 
@@ -14,8 +18,12 @@ export function listThreads(token: string) {
   return apiRequest("/chat/threads", { token });
 }
 
+export type ChatThread = {
+  id: string;
+};
+
 export function startDirectThread(token: string, recipientUserId: string) {
-  return apiRequest("/chat/direct", {
+  return apiRequest<ChatThread>("/chat/direct", {
     method: "POST",
     token,
     body: { recipientUserId }

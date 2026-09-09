@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -28,13 +28,11 @@ import { useAuth } from "../../state/auth-context";
 import { useChatSocket, useChatThreadRealtime } from "../../state/chat-socket-context";
 import { useChatUnread } from "../../state/chat-unread-context";
 import { getProfile } from "../../services/profile.service";
+import { fonts } from "../../theme/typography";
 import { useTheme } from "../../theme/theme-context";
 import type { ChatStackParamList } from "../../navigation/types";
 
 type Props = NativeStackScreenProps<ChatStackParamList, "ChatConversation">;
-
-const IG_BLUE = "#0095F6";
-const IG_SENT_LIGHT = "#EFEFEF";
 
 function appendMessage(prev: ChatRealtimeMessage[], message: ChatRealtimeMessage) {
   if (prev.some((m) => m.id === message.id)) return prev;
@@ -73,14 +71,14 @@ function MessageBubble({
           borderRadius: 22,
           borderBottomRightRadius: mine ? 6 : 22,
           borderBottomLeftRadius: mine ? 22 : 6,
-          backgroundColor: mine ? IG_BLUE : isDark ? colors.inset : IG_SENT_LIGHT,
+          backgroundColor: mine ? colors.primary : isDark ? colors.inset : colors.card,
           borderWidth: mine ? 0 : 1,
           borderColor: colors.border
         }}
       >
         <Text
           style={{
-            color: mine ? "#fff" : colors.text,
+            color: mine ? colors.primaryOn : colors.text,
             fontSize: 15,
             lineHeight: 20
           }}
@@ -258,13 +256,13 @@ export function ChatConversationScreen({ route, navigation }: Props) {
       <View
         style={{
           paddingTop: insets.top + 4,
-          paddingBottom: 10,
+          paddingBottom: 12,
           paddingHorizontal: 12,
           flexDirection: "row",
           alignItems: "center",
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: colors.border,
-          backgroundColor: colors.card
+          backgroundColor: colors.heroFrom,
+          borderBottomWidth: 3,
+          borderBottomColor: colors.gold
         }}
       >
         <Pressable
@@ -272,7 +270,7 @@ export function ChatConversationScreen({ route, navigation }: Props) {
           hitSlop={12}
           style={{ padding: 6, marginRight: 4 }}
         >
-          <ChevronBackIcon color={colors.text} size={26} />
+          <ChevronBackIcon color={colors.heroText} size={26} />
         </Pressable>
 
         <Pressable
@@ -288,10 +286,18 @@ export function ChatConversationScreen({ route, navigation }: Props) {
           />
 
           <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700" }} numberOfLines={1}>
+            <Text
+              style={{
+                color: colors.heroText,
+                fontSize: 20,
+                fontWeight: "700",
+                fontFamily: fonts.serifBold
+              }}
+              numberOfLines={1}
+            >
               {recipientName || "Chat"}
             </Text>
-            <Text style={{ color: colors.muted, fontSize: 12 }}>
+            <Text style={{ color: colors.heroMuted, fontSize: 12 }}>
               {socketConnected ? "Active now" : "Connecting…"}
             </Text>
           </View>
@@ -299,7 +305,7 @@ export function ChatConversationScreen({ route, navigation }: Props) {
 
         {recipientUserId ? (
           <Pressable onPress={() => setMenuOpen((v) => !v)} hitSlop={12} style={{ padding: 8 }}>
-            <Text style={{ color: colors.text, fontSize: 22, fontWeight: "700" }}>⋯</Text>
+            <Text style={{ color: colors.heroText, fontSize: 22, fontWeight: "700" }}>⋯</Text>
           </Pressable>
         ) : null}
       </View>
@@ -439,13 +445,13 @@ export function ChatConversationScreen({ route, navigation }: Props) {
                   width: 36,
                   height: 36,
                   borderRadius: 18,
-                  backgroundColor: messageText.trim() ? IG_BLUE : colors.border,
+                  backgroundColor: messageText.trim() ? colors.primary : colors.border,
                   alignItems: "center",
                   justifyContent: "center",
                   opacity: sending ? 0.6 : 1
                 }}
               >
-                <SendIcon color="#fff" size={18} />
+                <SendIcon color={colors.primaryOn} size={18} />
               </Pressable>
             </View>
           )}

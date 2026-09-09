@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import {
@@ -119,6 +119,7 @@ export function ReportsScreen({ navigation }: { navigation?: any }) {
     <ScreenLayout
       title="Reported users"
       subtitle="Review flags · view profiles · see who reported"
+      headerStyle="slim"
     >
       <Card>
         <SectionTitle title="Queue filter" />

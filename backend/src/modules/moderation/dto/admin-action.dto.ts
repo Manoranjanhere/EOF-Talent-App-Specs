@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { ActionType, FlagStatus } from "@prisma/client";
+import { ActionType, FlagStatus } from "../../../database/prisma-client";
 import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from "class-validator";
 
 export class AdminActionDto {

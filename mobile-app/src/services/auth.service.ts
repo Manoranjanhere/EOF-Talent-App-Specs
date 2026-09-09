@@ -64,6 +64,7 @@ export function registerUser(payload: {
   groupId: number;
   firebaseIdToken?: string;
   otpCode?: string;
+  referredByUserId?: string;
 }) {
   return apiRequest<LoginResponse>("/auth/register", {
     method: "POST",

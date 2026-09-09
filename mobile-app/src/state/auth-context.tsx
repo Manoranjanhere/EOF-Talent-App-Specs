@@ -1,14 +1,15 @@
-import React, {
+import {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useRef,
-  useState
+  useState,
+  type ReactNode
 } from "react";
 import { GroupId } from "@eof/shared";
-import { getProfile } from "../services/profile.service";
+import { getProfile, type PublicProfile } from "../services/profile.service";
 import { refreshAccessToken } from "../services/auth.service";
 import { setAccessTokenRefreshHandler } from "../services/api-client";
 import {
@@ -51,7 +52,7 @@ type AuthContextValue = AuthState & {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function detectOnboarding(user: AuthUser, profile: any): OnboardingKind {
+function detectOnboarding(user: AuthUser, profile: PublicProfile): OnboardingKind {
   const roles = user.roles ?? [];
   const isTalent = roles.includes(GroupId.Talent);
   const isEmployer = roles.includes(GroupId.TalentEmployerOrAgency);
@@ -60,7 +61,7 @@ function detectOnboarding(user: AuthUser, profile: any): OnboardingKind {
     const hasPhoto =
       Boolean(profile?.profilePhotoAssetId) ||
       Boolean(profile?.profilePhotoObjectKey) ||
-      Boolean(profile?.mediaAssets?.some((m: any) => m.isProfilePhoto));
+      Boolean(profile?.mediaAssets?.some((m) => m.isProfilePhoto));
     if (!hasPhoto) return "talent";
   }
 
@@ -68,7 +69,7 @@ function detectOnboarding(user: AuthUser, profile: any): OnboardingKind {
     const hasPhoto =
       Boolean(profile?.profilePhotoAssetId) ||
       Boolean(profile?.profilePhotoObjectKey) ||
-      Boolean(profile?.mediaAssets?.some((m: any) => m.isProfilePhoto));
+      Boolean(profile?.mediaAssets?.some((m) => m.isProfilePhoto));
     if (!hasPhoto) return "employer";
     if (!profile?.profileOrg?.legalName || !profile?.profileOrg?.addressLine) {
       return "employer";
@@ -78,7 +79,7 @@ function detectOnboarding(user: AuthUser, profile: any): OnboardingKind {
   return null;
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     accessToken: null,
     refreshToken: null,

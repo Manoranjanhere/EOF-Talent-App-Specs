@@ -4,10 +4,11 @@ import {
   Injectable,
   NotFoundException
 } from "@nestjs/common";
-import { TagLinkType } from "@prisma/client";
+import { GigReviewerRole, TagLinkType } from "../../database/prisma-client";
 import { GroupId } from "@eof/shared";
 import { PrismaService } from "../../database/prisma.service";
 import { StorageService } from "../storage/storage.service";
+import { withoutPassword } from "../../common/without-password";
 import { UpdateTalentProfileDto } from "./dto/update-talent-profile.dto";
 import { UpdateOrgProfileDto } from "./dto/update-org-profile.dto";
 import { SetProfileTagsDto } from "./dto/set-profile-tags.dto";
@@ -60,7 +61,7 @@ export class ProfilesService {
     });
 
     await this.assertProfilePhotoExists(userId);
-    return updateResult;
+    return withoutPassword(updateResult);
   }
 
   async updateOrgProfile(userId: string, dto: UpdateOrgProfileDto, audit: AuditData) {
@@ -202,26 +203,68 @@ export class ProfilesService {
       throw new BadRequestException("Self rating is not allowed");
     }
 
-    const rater = await this.prisma.userRoleLink.findFirst({
-      where: {
-        userId: ratedByUserId,
-        groupId: GroupId.TalentEmployerOrAgency,
-        isActive: true
-      }
-    });
-    if (!rater) {
-      throw new ForbiddenException("Only employer or agency can rate talent");
+    const [raterRoles, targetRoles] = await Promise.all([
+      this.prisma.userRoleLink.findMany({
+        where: { userId: ratedByUserId, isActive: true }
+      }),
+      this.prisma.userRoleLink.findMany({
+        where: { userId: ratedForUserId, isActive: true }
+      })
+    ]);
+    const raterIsEmployer = raterRoles.some((r) => r.groupId === GroupId.TalentEmployerOrAgency);
+    const raterIsTalent = raterRoles.some((r) => r.groupId === GroupId.Talent);
+    const targetIsEmployer = targetRoles.some((r) => r.groupId === GroupId.TalentEmployerOrAgency);
+    const targetIsTalent = targetRoles.some((r) => r.groupId === GroupId.Talent);
+
+    const employerRatesTalent = raterIsEmployer && targetIsTalent;
+    const talentRatesEmployer = raterIsTalent && targetIsEmployer;
+    if (!employerRatesTalent && !talentRatesEmployer) {
+      throw new ForbiddenException("Employers rate talent and talent rate employers");
     }
 
-    const talent = await this.prisma.userRoleLink.findFirst({
-      where: {
-        userId: ratedForUserId,
-        groupId: GroupId.Talent,
-        isActive: true
+    if (dto.jobId) {
+      const application = await this.prisma.jobApplication.findFirst({
+        where: {
+          jobId: dto.jobId,
+          isActive: true,
+          jobCompleted: true,
+          ...(employerRatesTalent
+            ? { applicantUserId: ratedForUserId, job: { postedByUserId: ratedByUserId } }
+            : { applicantUserId: ratedByUserId, job: { postedByUserId: ratedForUserId } })
+        }
+      });
+      if (application) {
+        await this.prisma.jobGigReview.upsert({
+          where: {
+            applicationId_reviewerRole: {
+              applicationId: application.id,
+              reviewerRole: employerRatesTalent
+                ? GigReviewerRole.EMPLOYER_RATES_TALENT
+                : GigReviewerRole.TALENT_RATES_EMPLOYER
+            }
+          },
+          create: {
+            jobId: dto.jobId,
+            applicationId: application.id,
+            ratedForUserId,
+            ratedByUserId,
+            reviewerRole: employerRatesTalent
+              ? GigReviewerRole.EMPLOYER_RATES_TALENT
+              : GigReviewerRole.TALENT_RATES_EMPLOYER,
+            ratingValue: dto.ratingValue,
+            comments: dto.comments,
+            lastUpdateIp: audit.ip,
+            lastUpdateBy: audit.updatedBy
+          },
+          update: {
+            ratingValue: dto.ratingValue,
+            comments: dto.comments,
+            isActive: true,
+            lastUpdateIp: audit.ip,
+            lastUpdateBy: audit.updatedBy
+          }
+        });
       }
-    });
-    if (!talent) {
-      throw new BadRequestException("Rated user must be a talent member");
     }
 
     await this.prisma.userRating.upsert({
@@ -247,22 +290,12 @@ export class ProfilesService {
       }
     });
 
-    const aggregate = await this.prisma.userRating.aggregate({
-      where: { ratedForUserId, isActive: true },
-      _avg: { ratingValue: true },
-      _count: { ratingValue: true }
-    });
-
-    const updated = await this.prisma.userAccount.update({
-      where: { id: ratedForUserId },
-      data: {
-        ratingAverage: aggregate._avg.ratingValue ?? 0,
-        ratingCount: aggregate._count.ratingValue,
-        lastUpdateIp: audit.ip,
-        lastUpdateBy: audit.updatedBy
-      }
-    });
-    return updated;
+    await this.syncRatingAverage(ratedForUserId, audit);
+    const updated = await this.prisma.userAccount.findUnique({ where: { id: ratedForUserId } });
+    if (!updated) throw new NotFoundException("Profile not found");
+    const { passwordHash, ...safe } = updated;
+    void passwordHash;
+    return { ...safe, myRating: dto.ratingValue };
   }
 
   async getUserProfile(userId: string, viewerUserId?: string) {
@@ -278,7 +311,8 @@ export class ProfilesService {
         mediaAssets: {
           where: { isProfilePhoto: true, isActive: true },
           take: 1
-        }
+        },
+        roles: { where: { isActive: true } }
       }
     });
     if (!profile) {
@@ -301,12 +335,113 @@ export class ProfilesService {
       }
     }
 
+    const isTalent = profile.roles.some((r) => r.groupId === GroupId.Talent);
+    const isEmployer = profile.roles.some((r) => r.groupId === GroupId.TalentEmployerOrAgency);
+
+    const seriousAboutJob = isTalent
+      ? Boolean(
+          await this.prisma.userSubscription.findFirst({
+            where: {
+              userId,
+              isActive: true,
+              lastExpiry: { gte: new Date() },
+              plan: { code: "TALENT_SERIOUS_JOB_200", isActive: true }
+            }
+          })
+        )
+      : false;
+
+    const completedGigs = isTalent
+      ? (
+          await this.prisma.jobApplication.findMany({
+            where: { applicantUserId: userId, isActive: true, jobCompleted: true },
+            include: {
+              job: { include: { postedBy: { select: { id: true, fullName: true } } } },
+              gigReviews: {
+                where: {
+                  isActive: true,
+                  reviewerRole: GigReviewerRole.EMPLOYER_RATES_TALENT
+                }
+              }
+            },
+            orderBy: { completedAt: "desc" }
+          })
+        ).map((app) => ({
+          applicationId: app.id,
+          jobId: app.jobId,
+          title: app.job.title,
+          employerUserId: app.job.postedBy.id,
+          employerName: app.job.postedBy.fullName,
+          completedAt: app.completedAt,
+          rating: app.gigReviews[0]?.ratingValue ?? null,
+          comments: app.gigReviews[0]?.comments ?? null
+        }))
+      : [];
+
+    let employerStats: {
+      gigsPosted: number;
+      gigsCompleted: number;
+      avgRating: number;
+    } | null = null;
+    if (isEmployer) {
+      const [gigsPosted, gigsCompleted] = await Promise.all([
+        this.prisma.jobPosting.count({ where: { postedByUserId: userId, isActive: true } }),
+        this.prisma.jobPosting.count({
+          where: {
+            postedByUserId: userId,
+            isActive: true,
+            applications: { some: { jobCompleted: true, isActive: true } }
+          }
+        })
+      ]);
+      employerStats = {
+        gigsPosted,
+        gigsCompleted,
+        avgRating: Number(profile.ratingAverage ?? 0)
+      };
+    }
+
+    const { passwordHash, ...safeProfile } = profile;
+    void passwordHash;
+
     return {
-      ...profile,
+      ...safeProfile,
       profilePhotoUrl: photo ? await this.storage.getReadUrl(photo.objectKey) : null,
       profilePhotoObjectKey: photo?.objectKey ?? null,
-      myRating
+      myRating,
+      seriousAboutJob,
+      completedGigs,
+      employerStats
     };
+  }
+
+  private async syncRatingAverage(userId: string, audit: AuditData) {
+    const [gigs, profiles] = await Promise.all([
+      this.prisma.jobGigReview.findMany({
+        where: { ratedForUserId: userId, isActive: true },
+        select: { ratedByUserId: true, ratingValue: true }
+      }),
+      this.prisma.userRating.findMany({
+        where: { ratedForUserId: userId, isActive: true },
+        select: { ratedByUserId: true, ratingValue: true }
+      })
+    ]);
+    const gigRaters = new Set(gigs.map((row) => row.ratedByUserId));
+    const values = [
+      ...gigs.map((row) => row.ratingValue),
+      ...profiles.filter((row) => !gigRaters.has(row.ratedByUserId)).map((row) => row.ratingValue)
+    ];
+    const total = values.length;
+    const avg = total === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / total;
+    await this.prisma.userAccount.update({
+      where: { id: userId },
+      data: {
+        ratingAverage: avg,
+        ratingCount: total,
+        lastUpdateIp: audit.ip,
+        lastUpdateBy: audit.updatedBy
+      }
+    });
   }
 
   private async assertProfilePhotoExists(userId: string) {

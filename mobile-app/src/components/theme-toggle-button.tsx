@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { Animated, Pressable, View } from "react-native";
 import { MoonIcon, SunIcon } from "./icons";
 import { useTheme } from "../theme/theme-context";
@@ -47,7 +47,7 @@ export function ThemeToggleButton() {
           borderRadius: KNOB / 2,
           backgroundColor: colors.card,
           borderWidth: 1,
-          borderColor: colors.primary,
+          borderColor: colors.gold,
           transform: [{ translateX: slideX }]
         }}
       />
@@ -85,7 +85,7 @@ export function ThemeToggleButton() {
           zIndex: 1
         })}
       >
-        <MoonIcon color={isDark ? "#A5B4FC" : colors.muted} size={19} />
+        <MoonIcon color={isDark ? colors.gold : colors.muted} size={19} />
       </Pressable>
     </View>
   );

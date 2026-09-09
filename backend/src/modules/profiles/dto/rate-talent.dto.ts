@@ -12,4 +12,9 @@ export class RateTalentDto {
   @IsOptional()
   @IsString()
   comments?: string;
+
+  @ApiProperty({ required: false, description: "Job id when rating a completed gig" })
+  @IsOptional()
+  @IsString()
+  jobId?: string;
 }

@@ -56,7 +56,6 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-*}
       OTP_TEST_BYPASS: ${OTP_TEST_BYPASS:-true}
       FIREBASE_SERVICE_ACCOUNT_PATH: ${FIREBASE_SERVICE_ACCOUNT_PATH:-./firebase-service-account.json}
-      SEED_ON_START: ${SEED_ON_START:-false}
     volumes:
       - eof_uploads:/app/backend/uploads
       # Firebase Admin credentials (scp this file to the EC2 repo before starting)

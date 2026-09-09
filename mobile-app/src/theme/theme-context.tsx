@@ -1,11 +1,12 @@
-import React, {
+import {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useRef,
-  useState
+  useState,
+  type ReactNode
 } from "react";
 import { Animated, Easing } from "react-native";
 import { AppColors, ThemeMode, lightColors, palettes } from "./colors";
@@ -25,7 +26,7 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>("light");
   const [colors, setColors] = useState<AppColors>(lightColors);
   const [progressValue, setProgressValue] = useState(0);

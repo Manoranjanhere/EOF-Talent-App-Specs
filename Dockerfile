@@ -45,9 +45,8 @@ RUN npm ci --omit=dev --workspace=@eof/shared --workspace=backend \
 COPY --from=build /app/packages/shared ./packages/shared
 COPY --from=build /app/backend/dist ./backend/dist
 COPY --from=build /app/backend/prisma ./backend/prisma
+COPY --from=build /app/backend/generated ./backend/generated
 COPY --from=build /app/backend/docker-entrypoint.sh ./backend/docker-entrypoint.sh
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=build /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
 RUN chmod +x /app/backend/docker-entrypoint.sh \
   && mkdir -p /app/backend/uploads

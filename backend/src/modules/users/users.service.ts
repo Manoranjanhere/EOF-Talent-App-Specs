@@ -1,7 +1,8 @@
 import { Injectable, ForbiddenException, BadRequestException, NotFoundException } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../../database/prisma-client";
 import { GroupId } from "@eof/shared";
 import { PrismaService } from "../../database/prisma.service";
+import { withoutPassword } from "../../common/without-password";
 
 type AuditData = {
   ip: string;
@@ -28,7 +29,7 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException("User not found");
     }
-    return user;
+    return withoutPassword(user);
   }
 
   async listUsers(query: ListUsersQuery) {
@@ -149,7 +150,7 @@ export class UsersService {
       }
     });
 
-    return updated;
+    return withoutPassword(updated);
   }
 
   async banUser(userId: string, audit: AuditData, notes?: string) {
@@ -206,7 +207,7 @@ export class UsersService {
       }
     });
 
-    return updated;
+    return withoutPassword(updated);
   }
 
   async setLoginEnabled(userId: string, loginEnabled: boolean, audit: AuditData) {
@@ -240,7 +241,7 @@ export class UsersService {
       }
     });
 
-    return updated;
+    return withoutPassword(updated);
   }
 
   private async assertSuperAdmin(actorUserId: string) {

@@ -1,4 +1,3 @@
-import React from "react";
 import { Text } from "react-native";
 import { LinkButton, ScreenLayout, SectionTitle } from "../../components/ui";
 import { useTheme } from "../../theme/theme-context";
@@ -7,6 +6,7 @@ export function PrivacyPolicyScreen({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
   return (
     <ScreenLayout
+      headerStyle="slim"
       title="Privacy Policy"
       subtitle="How EOF Talent handles your data"
       footer={<LinkButton title="Back" onPress={() => navigation.goBack()} />}

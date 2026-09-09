@@ -1,4 +1,3 @@
-import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { GroupId } from "@eof/shared";
@@ -11,16 +10,17 @@ import { ForgotPasswordScreen } from "../screens/auth/forgot-password-screen";
 import { CompleteOnboardingScreen } from "../screens/auth/complete-onboarding-screen";
 import { DashboardScreen } from "../screens/home/dashboard-screen";
 import { ActivityIndicator, View } from "react-native";
+import { AppLogoIcon } from "../components/icons";
 import { ProfileHubScreen } from "../screens/profile/profile-hub-screen";
 import { TalentProfileScreen } from "../screens/profile/talent-profile-screen";
 import { OrgProfileScreen } from "../screens/profile/org-profile-screen";
 import { AlbumDetailScreen, AlbumsScreen } from "../screens/albums/albums-screen";
 import { AlbumsStackNavigator } from "./albums-stack";
 import { DiscoverStackNavigator } from "./discover-stack";
+import { JobsStackNavigator } from "./jobs-stack";
 import { AdminReportsStackNavigator } from "./admin-reports-stack";
 import { AdminUsersStackNavigator } from "./admin-users-stack";
 import { AdminTagsScreen } from "../screens/admin/admin-tags-screen";
-import { JobSearchScreen } from "../screens/search/job-search-screen";
 import { PostJobStackNavigator } from "./post-job-stack";
 import { ChatStackNavigator } from "./chat-stack";
 import { HelpFeedbackScreen } from "../screens/feedback/help-feedback-screen";
@@ -63,7 +63,7 @@ function TabsNavigator() {
     >
       <AppTabs.Screen name="Home" component={DashboardScreen} options={{ title: "Home" }} />
 
-      {isEmployer && (
+      {(isEmployer || isTalent) && (
         <AppTabs.Screen
           name="Discover"
           component={DiscoverStackNavigator}
@@ -71,7 +71,7 @@ function TabsNavigator() {
         />
       )}
 
-      {isTalent && <AppTabs.Screen name="Jobs" component={JobSearchScreen} options={{ title: "Jobs" }} />}
+      {isTalent && <AppTabs.Screen name="Jobs" component={JobsStackNavigator} options={{ title: "Jobs" }} />}
 
       <AppTabs.Screen name="Chat" component={ChatStackNavigator} options={{ title: "Chat" }} />
 
@@ -118,8 +118,9 @@ export function RootNavigator() {
 
   if (auth.restoringSession || (auth.isAuthenticated && auth.checkingProfile)) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg }}>
-        <ActivityIndicator color={colors.primary} />
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg, gap: 16 }}>
+        <AppLogoIcon size={56} />
+        <ActivityIndicator color={colors.gold} />
       </View>
     );
   }

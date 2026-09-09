@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { Alert } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import {
@@ -79,6 +79,7 @@ export function AdminTagsScreen() {
   return (
     <ScreenLayout
       title="Skill tags"
+      headerStyle="slim"
       subtitle="Add primary & secondary skills for talent profiles and job posts"
     >
       <Card>

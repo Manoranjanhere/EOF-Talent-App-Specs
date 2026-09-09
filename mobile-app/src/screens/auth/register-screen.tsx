@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Image, Pressable, Text, View } from "react-native";
 import { GroupId } from "@eof/shared";
 import * as ImagePicker from "expo-image-picker";
@@ -56,6 +56,7 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
   const [usingFirebase, setUsingFirebase] = useState(true);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [referredByUserId, setReferredByUserId] = useState("");
   const [groupId, setGroupId] = useState<number>(GroupId.Talent);
 
   // Talent step-2
@@ -345,7 +346,8 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
         password,
         groupId,
         firebaseIdToken,
-        otpCode: otpForApi
+        otpCode: otpForApi,
+        referredByUserId: referredByUserId.trim() || undefined
       });
 
       const token = response.tokens.accessToken;
@@ -405,8 +407,8 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
   if (step === "details" && !isEmployer) {
     return (
       <ScreenLayout
-        title="Talent profile"
-        subtitle="Step 2 of 2 · Photo, details, skills & availability"
+        title="Your lookbook"
+        subtitle="Step 2 of 2 · Photo, skills, and how you want to be seen"
         headerRight={<ThemeToggleButton />}
         footer={<LinkButton title="Back" onPress={() => setStep("account")} />}
       >
@@ -414,14 +416,14 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
         {photoUri ? (
           <Image
             source={{ uri: photoUri }}
-            style={{ width: 120, height: 120, borderRadius: 60, alignSelf: "center" }}
+            style={{ width: 128, height: 156, borderRadius: 22, alignSelf: "center" }}
           />
         ) : (
           <View
             style={{
-              width: 120,
-              height: 120,
-              borderRadius: 60,
+              width: 128,
+              height: 156,
+              borderRadius: 22,
               alignSelf: "center",
               backgroundColor: colors.inset,
               borderWidth: 1,
@@ -599,8 +601,8 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
   if (step === "details" && isEmployer) {
     return (
       <ScreenLayout
-        title="Company details"
-        subtitle="Step 2 of 2 · Photo + required company info"
+        title="Your company"
+        subtitle="Step 2 of 2 · Photo and the details clients should see"
         headerRight={<ThemeToggleButton />}
         footer={<LinkButton title="Back" onPress={() => setStep("account")} />}
       >
@@ -609,9 +611,9 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
           <Image
             source={{ uri: photoUri }}
             style={{
-              width: 120,
-              height: 120,
-              borderRadius: 60,
+              width: 128,
+              height: 156,
+              borderRadius: 22,
               alignSelf: "center",
               marginBottom: 8
             }}
@@ -725,8 +727,8 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
 
   return (
     <ScreenLayout
-      title="Create account"
-      subtitle="Step 1 of 2 · Verify phone OTP, then continue to profile details"
+      title="Join the stage"
+      subtitle="Step 1 of 2 · Verify your phone, then build your profile"
       headerRight={<ThemeToggleButton />}
       footer={
         <>
@@ -816,6 +818,14 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         secureTextEntry
+      />
+
+      <LabeledInput
+        label="Referral id (optional)"
+        placeholder="Talent friend who invited you"
+        value={referredByUserId}
+        onChangeText={setReferredByUserId}
+        autoCapitalize="none"
       />
 
       <PrimaryButton

@@ -6,10 +6,9 @@ import {
   NotFoundException,
   UnauthorizedException
 } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Prisma, PurchaseType, UserAccount } from "../../database/prisma-client";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
-import { UserAccount } from "@prisma/client";
 import * as bcrypt from "bcrypt";
 import { PrismaService } from "../../database/prisma.service";
 import { RegisterDto } from "./dto/register.dto";
@@ -67,6 +66,7 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
+    const referredByUserId = await this.resolveReferrerId(dto.referredByUserId);
 
     try {
       const user = await this.prisma.userAccount.create({
@@ -75,6 +75,7 @@ export class AuthService {
           email,
           mobileNumber,
           passwordHash,
+          referredByUserId,
           lastUpdateIp: audit.ip,
           lastUpdateBy: audit.updatedBy,
           roles: {
@@ -97,6 +98,10 @@ export class AuthService {
         },
         include: { roles: true }
       });
+
+      if (referredByUserId && dto.groupId === 1 && referredByUserId !== user.id) {
+        await this.grantReferralSeriousMonth(referredByUserId, audit);
+      }
 
       return this.issueTokens(user);
     } catch (error) {
@@ -296,6 +301,61 @@ export class AuthService {
     }
 
     return this.issueTokens(user);
+  }
+
+  private async resolveReferrerId(raw?: string) {
+    const id = raw?.trim();
+    if (!id) return undefined;
+    const referrer = await this.prisma.userAccount.findFirst({
+      where: { id, isActive: true }
+    });
+    return referrer?.id;
+  }
+
+  private async grantReferralSeriousMonth(referrerUserId: string, audit: AuditData) {
+    const talentRole = await this.prisma.userRoleLink.findFirst({
+      where: { userId: referrerUserId, groupId: 1, isActive: true }
+    });
+    if (!talentRole) return;
+    const plan = await this.prisma.subscriptionPlanMaster.findUnique({
+      where: { code: "TALENT_SERIOUS_JOB_200" }
+    });
+    if (!plan || !plan.isActive) return;
+    const now = new Date();
+    const monthMs = 30 * 24 * 60 * 60 * 1000;
+    const existing = await this.prisma.userSubscription.findFirst({
+      where: {
+        userId: referrerUserId,
+        planId: plan.id,
+        isActive: true
+      },
+      orderBy: { lastExpiry: "desc" }
+    });
+    if (existing) {
+      const base = existing.lastExpiry > now ? existing.lastExpiry : now;
+      await this.prisma.userSubscription.update({
+        where: { id: existing.id },
+        data: {
+          lastExpiry: new Date(base.getTime() + monthMs),
+          lastUpdateIp: audit.ip,
+          lastUpdateBy: audit.updatedBy
+        }
+      });
+      return;
+    }
+    const expiry = new Date(now.getTime() + monthMs);
+    await this.prisma.userSubscription.create({
+      data: {
+        userId: referrerUserId,
+        planId: plan.id,
+        purchaseType: PurchaseType.COMPENSATORY,
+        purchaseDate: now,
+        originalExpiry: expiry,
+        lastExpiry: expiry,
+        lastUpdateIp: audit.ip,
+        lastUpdateBy: audit.updatedBy
+      }
+    });
   }
 
   private async findUserByMobile(mobileNumber: string): Promise<UserAccount | null>;

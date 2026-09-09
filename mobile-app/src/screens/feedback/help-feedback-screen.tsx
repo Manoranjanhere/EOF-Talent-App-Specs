@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { Alert, Pressable, Text } from "react-native";
+import { useState } from "react";
+import { Alert, Pressable } from "react-native";
+import { AppText } from "../../components/app-text";
 import {
   Card,
   LabeledInput,
@@ -10,6 +11,7 @@ import {
 } from "../../components/ui";
 import { submitFeedback } from "../../services/feedback.service";
 import { useAuth } from "../../state/auth-context";
+import { fonts } from "../../theme/typography";
 import { useTheme } from "../../theme/theme-context";
 import { PrivacyPolicyScreen } from "../legal/privacy-policy-screen";
 import { TermsOfServiceScreen } from "../legal/terms-of-service-screen";
@@ -25,11 +27,11 @@ const FAQ_ITEMS = [
   },
   {
     q: "How much does messaging cost?",
-    a: "Talent can message for free. Employers & agencies: ₹300/month via Google Play — subscribe from the Chat tab before sending messages."
+    a: "Talent: Messaging ₹100/month (talent-to-talent) or Serious about job ₹200/month (includes messaging, employer chat, and a public badge). Employers: ₹300/month via Google Play — includes 2 free job slots."
   },
   {
     q: "How do I post a job?",
-    a: "Employers: Post job tab → buy a ₹300 slot in Google Play → fill title, skills, pay range, and publish. Listings stay live for 90 days."
+    a: "Employers: Post job tab → buy a ₹100 slot in Google Play (or use slots included with messaging) → fill title, skills, pay range, and publish. Listings stay live for 90 days. Expired jobs can be reposted with one tap."
   },
   {
     q: "Where are Privacy Policy and Terms?",
@@ -37,7 +39,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "How do employers find talent?",
-    a: "Discover tab → search by city, skills, availability → tap a profile to view albums and send a message."
+    a: "Discover tab → search by name, city, or skills → tap a profile. On Discover, use Add to list on a card or open Lists in the header to manage folders. Lists are searchable by name and skill tags."
   },
   {
     q: "How do I report a profile?",
@@ -87,7 +89,7 @@ export function HelpFeedbackScreen() {
   };
 
   return (
-    <ScreenLayout title="Help & feedback" subtitle="Q&A · contact Super Admin">
+    <ScreenLayout title="Help" subtitle="Answers, then a note to Super Admin" headerStyle="slim">
       <Card>
         <SectionTitle title="Basic Q&A" />
         {FAQ_ITEMS.map((item, index) => {
@@ -102,11 +104,11 @@ export function HelpFeedbackScreen() {
                 borderBottomColor: colors.border
               }}
             >
-              <Text style={{ color: colors.text, fontSize: 14, fontWeight: "600" }}>{item.q}</Text>
+              <AppText style={{ color: colors.text, fontFamily: fonts.sansSemi }}>{item.q}</AppText>
               {open ? (
-                <Text style={{ color: colors.muted, fontSize: 13, marginTop: 6, lineHeight: 20 }}>
+                <AppText variant="meta" style={{ color: colors.muted, marginTop: 6 }}>
                   {item.a}
-                </Text>
+                </AppText>
               ) : null}
             </Pressable>
           );
@@ -123,9 +125,9 @@ export function HelpFeedbackScreen() {
 
       <Card>
         <SectionTitle title="Send feedback" />
-        <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 10 }}>
+        <AppText variant="meta" style={{ color: colors.muted, marginBottom: 10 }}>
           Your feedback is sent as a chat message to Super Admin accounts only.
-        </Text>
+        </AppText>
         <LabeledInput label="Subject" value={subject} onChangeText={setSubject} placeholder="Brief summary" />
         <LabeledInput
           label="Message"

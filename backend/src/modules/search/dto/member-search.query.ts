@@ -3,6 +3,11 @@ import { Transform } from "class-transformer";
 import { IsBoolean, IsInt, IsOptional, IsString, Min } from "class-validator";
 
 export class MemberSearchQuery {
+  @ApiPropertyOptional({ description: "Search by name" })
+  @IsOptional()
+  @IsString()
+  q?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

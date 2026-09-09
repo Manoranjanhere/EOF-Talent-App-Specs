@@ -1,8 +1,8 @@
-import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { tabIcons, TabRouteName } from "../components/icons";
+import { fonts } from "../theme/typography";
 import { useTheme } from "../theme/theme-context";
 import { useChatUnread } from "../state/chat-unread-context";
 
@@ -19,15 +19,16 @@ export function ScrollableTabBar({ state, descriptors, navigation }: BottomTabBa
         {
           backgroundColor: colors.card,
           borderTopColor: colors.border,
-          paddingBottom: Math.max(insets.bottom, 8),
-          shadowColor: "#0F172A",
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.06,
-          shadowRadius: 12,
-          elevation: 12
+          paddingBottom: Math.max(insets.bottom, 10),
+          shadowColor: colors.shadow,
+          shadowOffset: { width: 0, height: -6 },
+          shadowOpacity: 0.08,
+          shadowRadius: 16,
+          elevation: 14
         }
       ]}
     >
+      <View style={{ height: 2, backgroundColor: colors.gold, opacity: 0.7 }} />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -70,26 +71,10 @@ export function ScrollableTabBar({ state, descriptors, navigation }: BottomTabBa
                 styles.item,
                 focused && {
                   backgroundColor: colors.primarySoft,
-                  borderRadius: 16,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  overflow: "hidden"
+                  borderRadius: 16
                 }
               ]}
             >
-              {focused ? (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 12,
-                    right: 12,
-                    height: 3,
-                    borderRadius: 2,
-                    backgroundColor: colors.primary
-                  }}
-                />
-              ) : null}
               {Icon ? (
                 <View>
                   <Icon color={color} size={22} />
@@ -102,7 +87,7 @@ export function ScrollableTabBar({ state, descriptors, navigation }: BottomTabBa
                         minWidth: 18,
                         height: 18,
                         borderRadius: 9,
-                        backgroundColor: "#FF3040",
+                        backgroundColor: colors.primary,
                         alignItems: "center",
                         justifyContent: "center",
                         paddingHorizontal: 4,
@@ -111,14 +96,17 @@ export function ScrollableTabBar({ state, descriptors, navigation }: BottomTabBa
                         overflow: "hidden"
                       }}
                     >
-                      <Text style={{ color: "#fff", fontSize: 10, fontWeight: "800" }}>
+                      <Text style={{ color: colors.primaryOn, fontSize: 10, fontWeight: "800" }}>
                         {badgeLabel}
                       </Text>
                     </View>
                   ) : null}
                 </View>
               ) : null}
-              <Text style={[styles.label, { color, fontWeight: focused ? "800" : "600" }]} numberOfLines={1}>
+              <Text
+                style={[styles.label, { color, fontWeight: focused ? "800" : "600" }]}
+                numberOfLines={1}
+              >
                 {label}
               </Text>
             </Pressable>
@@ -131,12 +119,12 @@ export function ScrollableTabBar({ state, descriptors, navigation }: BottomTabBa
 
 const styles = StyleSheet.create({
   wrap: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: 8
+    borderTopWidth: 0
   },
   row: {
     paddingHorizontal: 10,
     paddingRight: 28,
+    paddingTop: 8,
     alignItems: "center"
   },
   item: {
@@ -148,6 +136,9 @@ const styles = StyleSheet.create({
     gap: 4
   },
   label: {
-    fontSize: 11
+    fontSize: 10,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    fontFamily: fonts.sansSemi
   }
 });

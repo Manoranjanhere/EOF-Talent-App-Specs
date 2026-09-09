@@ -1,6 +1,7 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
+    "composite": true,
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
@@ -8,9 +9,16 @@
     "allowSyntheticDefaultImports": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "incremental": true
+    "incremental": true,
+    "module": "Node16",
+    "moduleResolution": "Node16"
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "prisma/seed.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
   ]
 }

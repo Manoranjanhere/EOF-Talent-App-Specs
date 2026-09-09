@@ -52,4 +52,9 @@ export class RegisterDto {
   @IsInt()
   @Min(1)
   groupId!: number;
+
+  @ApiPropertyOptional({ description: "User id of the talent who referred this signup" })
+  @IsOptional()
+  @IsString()
+  referredByUserId?: string;
 }

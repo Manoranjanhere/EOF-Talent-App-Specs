@@ -16,9 +16,15 @@ import { JobSearchQuery } from "./dto/job-search.query";
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
 
-  /** Employers/agencies discover talent — not for talent members. */
+  /** Talent and employers discover people to add to lists. */
   @Get("members")
-  @Roles(GroupId.TalentEmployerOrAgency, GroupId.Admin, GroupId.TeamAdmin, GroupId.SuperAdmin)
+  @Roles(
+    GroupId.Talent,
+    GroupId.TalentEmployerOrAgency,
+    GroupId.Admin,
+    GroupId.TeamAdmin,
+    GroupId.SuperAdmin
+  )
   searchMembers(@Query() query: MemberSearchQuery) {
     return this.searchService.searchMembers(query);
   }

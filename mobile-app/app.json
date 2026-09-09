@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1D4ED8"
+      "backgroundColor": "#1C1412"
     },
     "ios": {
       "supportsTablet": true,
@@ -18,7 +18,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1D4ED8"
+        "backgroundColor": "#1C1412"
       },
       "package": "com.anonymous.eoftalentapp",
       "usesCleartextTraffic": true,
@@ -37,7 +37,8 @@
         {
           "photosPermission": "Allow EOF Talent to access photos for your profile picture."
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   connectChatSocket,
   disconnectChatSocket,
@@ -23,7 +23,7 @@ type ChatSocketContextValue = {
 
 const ChatSocketContext = createContext<ChatSocketContextValue | undefined>(undefined);
 
-export function ChatSocketProvider({ children }: { children: React.ReactNode }) {
+export function ChatSocketProvider({ children }: { children: ReactNode }) {
   const { accessToken, isAuthenticated } = useAuth();
   const [connected, setConnected] = useState(false);
 

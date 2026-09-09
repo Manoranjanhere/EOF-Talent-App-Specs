@@ -12,6 +12,7 @@ import { TagsModule } from "./modules/tags/tags.module";
 import { AlbumsModule } from "./modules/albums/albums.module";
 import { SubscriptionsModule } from "./modules/subscriptions/subscriptions.module";
 import { JobsModule } from "./modules/jobs/jobs.module";
+import { ListsModule } from "./modules/lists/lists.module";
 import { SearchModule } from "./modules/search/search.module";
 import { ChatModule } from "./modules/chat/chat.module";
 import { ModerationModule } from "./modules/moderation/moderation.module";
@@ -45,6 +46,7 @@ import { MediaModule } from "./modules/media/media.module";
     MediaModule,
     SubscriptionsModule,
     JobsModule,
+    ListsModule,
     SearchModule,
     ChatModule,
     ModerationModule,

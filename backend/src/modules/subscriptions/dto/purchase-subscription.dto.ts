@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { PurchaseType } from "@prisma/client";
+import { PurchaseType } from "../../../database/prisma-client";
 import { IsEnum, IsOptional, IsString, IsUUID } from "class-validator";
 
 export class PurchaseSubscriptionDto {

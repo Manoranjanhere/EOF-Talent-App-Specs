@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { GroupId } from "@eof/shared";
-import { FlagStatus } from "@prisma/client";
+import { FlagStatus } from "../../database/prisma-client";
 import { Audit } from "../../common/decorators/audit.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";

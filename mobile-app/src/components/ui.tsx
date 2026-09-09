@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -12,12 +13,13 @@ import {
   View,
   ViewStyle
 } from "react-native";
-import { AppColors, lightColors } from "../theme/colors";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { AppColors } from "../theme/colors";
 import { useTheme } from "../theme/theme-context";
-import { AppLogoIcon, EyeIcon, EyeOffIcon } from "./icons";
-
-/** @deprecated Prefer useTheme().colors — kept for gradual migration */
-export const colors = lightColors;
+import { fonts } from "../theme/typography";
+import { AppLogoIcon, EyeIcon, EyeOffIcon, FilterIcon, StarIcon } from "./icons";
+import { AppText } from "./app-text";
 
 function useStyles() {
   const { colors: c } = useTheme();
@@ -29,42 +31,66 @@ export function ScreenLayout({
   subtitle,
   children,
   footer,
-  headerRight
+  headerRight,
+  headerStyle = "full",
+  showTitle = true
 }: {
   title: string;
   subtitle?: string;
-  children: React.ReactNode;
-  footer?: React.ReactNode;
-  headerRight?: React.ReactNode;
+  children: ReactNode;
+  footer?: ReactNode;
+  headerRight?: ReactNode;
+  headerStyle?: "full" | "slim";
+  showTitle?: boolean;
 }) {
+  const { colors: c } = useTheme();
   const styles = useStyles();
+  const insets = useSafeAreaInsets();
 
   return (
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <StatusBar barStyle="light-content" backgroundColor={c.heroFrom} />
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerBand}>
+        <LinearGradient
+          colors={[c.heroFrom, c.heroTo]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[
+            styles.headerBand,
+            headerStyle === "slim" && styles.headerBandSlim,
+            { paddingTop: Math.max(insets.top, 12) + (headerStyle === "slim" ? 4 : 8) }
+          ]}
+        >
+          <View style={styles.headerGoldLine} />
           <View style={styles.headerRow}>
             <View style={styles.headerText}>
-              <View style={styles.brandRow}>
+              <View style={[styles.brandRow, headerStyle === "slim" && { marginBottom: showTitle ? 10 : 0 }]}>
                 <View style={styles.logoBadge}>
-                  <AppLogoIcon size={22} />
+                  <AppLogoIcon size={headerStyle === "slim" ? 18 : 22} />
                 </View>
-                <Text style={styles.brand}>EOF Talent</Text>
+                <View>
+                  <Text style={styles.brand}>EOF Talent</Text>
+                  {headerStyle === "full" ? <Text style={styles.brandTag}>Casting marketplace</Text> : null}
+                </View>
               </View>
-              <Text style={styles.title}>{title}</Text>
-              {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+              {showTitle ? (
+                <>
+                  <Text style={[styles.title, headerStyle === "slim" && styles.titleSlim]}>{title}</Text>
+                  {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+                </>
+              ) : null}
             </View>
             {headerRight}
           </View>
-        </View>
-        {children}
+        </LinearGradient>
+        <View style={styles.body}>{children}</View>
         {footer ? <View style={styles.footer}>{footer}</View> : null}
       </ScrollView>
     </KeyboardAvoidingView>
@@ -75,7 +101,7 @@ export function Card({
   children,
   style
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   style?: ViewStyle;
 }) {
   const styles = useStyles();
@@ -310,6 +336,33 @@ export function RoleSelector({
   );
 }
 
+function badgeKind(badge?: string): "ok" | "warn" | "bad" | "gold" | "default" {
+  const value = (badge ?? "").toUpperCase();
+  if (["HIRED", "VERIFIED", "LIVE", "ACTIVE"].includes(value)) return "ok";
+  if (["REJECTED", "BLOCKED"].includes(value)) return "bad";
+  if (["PENDING", "REVIEWING", "INVITED"].includes(value)) return "gold";
+  if (["APPLIED", "SHORTLIST", "SHORTLISTED"].includes(value)) return "warn";
+  return "default";
+}
+
+function badgeStyleFor(badge: string, styles: ReturnType<typeof createStyles>) {
+  const kind = badgeKind(badge);
+  if (kind === "ok") return styles.badgeOk;
+  if (kind === "bad") return styles.badgeBad;
+  if (kind === "gold") return styles.badgeGold;
+  if (kind === "warn") return styles.badgeWarn;
+  return null;
+}
+
+function badgeTextStyleFor(badge: string, styles: ReturnType<typeof createStyles>) {
+  const kind = badgeKind(badge);
+  if (kind === "ok") return styles.badgeOkText;
+  if (kind === "bad") return styles.badgeBadText;
+  if (kind === "gold") return styles.badgeGoldText;
+  if (kind === "warn") return styles.badgeWarnText;
+  return null;
+}
+
 export function ListCard({
   title,
   subtitle,
@@ -341,6 +394,16 @@ export function ListCard({
         : styles.roleBadgeNeutralText;
   const content = (
     <>
+      <View
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 3,
+          backgroundColor: c.gold
+        }}
+      />
       <View style={styles.listCardTop}>
         <View style={{ flex: 1, paddingRight: 8 }}>
           <Text style={styles.listCardTitle}>{title}</Text>
@@ -353,12 +416,12 @@ export function ListCard({
             </View>
           ) : null}
           {badge ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{badge}</Text>
+            <View style={[styles.badge, badgeStyleFor(badge, styles)]}>
+              <Text style={[styles.badgeText, badgeTextStyleFor(badge, styles)]}>{badge}</Text>
             </View>
           ) : null}
           {onPress ? (
-            <Text style={{ color: c.primary, fontSize: 20, fontWeight: "300", marginTop: -2 }}>›</Text>
+            <Text style={{ color: c.gold, fontSize: 22, fontWeight: "300", marginTop: -2, fontFamily: fonts.serif }}>›</Text>
           ) : null}
         </View>
       </View>
@@ -426,15 +489,11 @@ export function StarRatingPicker({
               opacity: pressed ? 0.8 : 1
             })}
           >
-            <Text
-              style={{
-                fontSize: 34,
-                color: active ? c.primary : c.border,
-                lineHeight: 38
-              }}
-            >
-              ★
-            </Text>
+            <StarIcon
+              size={32}
+              color={active ? c.gold : c.border}
+              filled={active}
+            />
           </Pressable>
         );
       })}
@@ -448,22 +507,117 @@ export function EmptyState({ message }: { message: string }) {
 
   return (
     <View style={styles.empty}>
-      <View style={[styles.emptyIcon, { backgroundColor: c.primarySoft, borderColor: c.border }]}>
-        <Text style={{ fontSize: 22, color: c.primary }}>✦</Text>
+      <View style={[styles.emptyIcon, { backgroundColor: c.goldSoft, borderColor: c.gold }]}>
+        <AppText style={{ color: c.goldText, fontFamily: fonts.serifBold, fontSize: 28, lineHeight: 32 }}>
+          E
+        </AppText>
       </View>
-      <Text style={styles.emptyText}>{message}</Text>
+      <AppText style={styles.emptyText}>{message}</AppText>
     </View>
   );
 }
 
-export function StatPill({ label, value }: { label: string; value: string }) {
-  const styles = useStyles();
+export function SelectableChip({
+  label,
+  selected,
+  disabled,
+  onPress
+}: {
+  label: string;
+  selected?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  const { colors: c } = useTheme();
+  return (
+    <Pressable
+      disabled={disabled}
+      onPress={onPress}
+      style={{
+        opacity: disabled ? 0.4 : 1,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: selected ? c.primary : c.border,
+        backgroundColor: selected ? c.primarySoft : c.inset
+      }}
+    >
+      <AppText
+        variant="meta"
+        style={{ color: selected ? c.accentText : c.text, fontFamily: selected ? fonts.sansBold : fonts.sansMedium }}
+      >
+        {label}
+      </AppText>
+    </Pressable>
+  );
+}
+
+export function FilterDisclosure({
+  title,
+  open,
+  onToggle,
+  children,
+  summary
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+  summary?: string;
+}) {
+  const { colors: c } = useTheme();
 
   return (
-    <View style={styles.statPill}>
-      <View style={styles.statAccent} />
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+    <View
+      style={{
+        backgroundColor: c.card,
+        borderRadius: 22,
+        borderWidth: 1,
+        borderColor: c.border,
+        overflow: "hidden",
+        marginBottom: 4
+      }}
+    >
+      <Pressable
+        onPress={onToggle}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 16,
+          paddingVertical: 14,
+          gap: 12
+        }}
+      >
+        <View
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 12,
+            backgroundColor: c.goldSoft,
+            borderWidth: 1,
+            borderColor: c.gold,
+            alignItems: "center",
+            justifyContent: "center"
+          }}
+        >
+          <FilterIcon color={c.goldText} size={18} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: c.text, fontFamily: fonts.sansBold, fontSize: 15, fontWeight: "700" }}>
+            {title}
+          </Text>
+          {summary ? (
+            <Text style={{ color: c.muted, fontFamily: fonts.sans, fontSize: 12, marginTop: 2 }}>
+              {summary}
+            </Text>
+          ) : null}
+        </View>
+        <Text style={{ color: c.gold, fontFamily: fonts.serifBold, fontSize: 20 }}>
+          {open ? "–" : "+"}
+        </Text>
+      </Pressable>
+      {open ? <View style={{ paddingHorizontal: 16, paddingBottom: 16, gap: 12 }}>{children}</View> : null}
     </View>
   );
 }
@@ -471,84 +625,128 @@ export function StatPill({ label, value }: { label: string; value: string }) {
 function createStyles(c: AppColors) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: c.bg },
-    scroll: { flexGrow: 1, padding: 20, paddingBottom: 56, gap: 14 },
+    scroll: { flexGrow: 1, paddingBottom: 48 },
     headerBand: {
-      marginHorizontal: -20,
-      marginTop: -20,
-      paddingHorizontal: 20,
-      paddingTop: 20,
-      paddingBottom: 18,
-      backgroundColor: c.heroTint,
-      borderBottomLeftRadius: 28,
-      borderBottomRightRadius: 28,
-      marginBottom: 6
+      paddingHorizontal: 22,
+      paddingBottom: 26,
+      marginBottom: 4,
+      overflow: "hidden",
+      borderBottomLeftRadius: 32,
+      borderBottomRightRadius: 32
     },
-    headerRow: { flexDirection: "row", justifyContent: "space-between" },
+    headerBandSlim: {
+      paddingBottom: 16,
+      borderBottomLeftRadius: 24,
+      borderBottomRightRadius: 24
+    },
+    headerGoldLine: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 3,
+      backgroundColor: c.gold
+    },
+    headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
     headerText: { flex: 1, paddingRight: 12 },
-    brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
+    brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16 },
     logoBadge: {
-      width: 36,
-      height: 36,
-      borderRadius: 12,
-      backgroundColor: c.card,
+      width: 40,
+      height: 40,
+      borderRadius: 14,
+      backgroundColor: "rgba(255,251,247,0.1)",
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,
-      borderColor: c.border,
-      elevation: 1,
-      shadowColor: "#0F172A",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.06,
-      shadowRadius: 4
+      borderColor: "rgba(198,163,106,0.45)"
     },
     brand: {
-      color: c.primary,
+      color: c.gold,
       fontSize: 11,
-      fontWeight: "800",
-      letterSpacing: 1.4,
-      textTransform: "uppercase"
+      fontWeight: "700",
+      letterSpacing: 2.4,
+      textTransform: "uppercase",
+      fontFamily: fonts.sansBold
     },
-    title: { color: c.text, fontSize: 28, fontWeight: "800", letterSpacing: -0.5, lineHeight: 34 },
-    subtitle: { color: c.muted, fontSize: 14, marginTop: 6, lineHeight: 21 },
+    brandTag: {
+      color: c.heroMuted,
+      fontSize: 12,
+      marginTop: 2,
+      letterSpacing: 0.2,
+      fontFamily: fonts.serifItalic
+    },
+    title: {
+      color: c.heroText,
+      fontSize: 34,
+      fontWeight: "700",
+      letterSpacing: -0.7,
+      lineHeight: 38,
+      fontFamily: fonts.serifBold
+    },
+    titleSlim: {
+      fontSize: 24,
+      lineHeight: 28
+    },
+    subtitle: {
+      color: c.heroMuted,
+      fontSize: 14,
+      marginTop: 8,
+      lineHeight: 21,
+      fontFamily: fonts.sans
+    },
+    body: { paddingHorizontal: 20, paddingTop: 18, gap: 14 },
     footer: {
-      marginTop: 20,
+      marginTop: 8,
+      paddingHorizontal: 20,
       width: "100%",
       alignSelf: "stretch",
-      gap: 10
+      gap: 10,
+      paddingBottom: 8
     },
     card: {
       backgroundColor: c.card,
-      borderRadius: 20,
+      borderRadius: 22,
       padding: 18,
       borderWidth: 1,
       borderColor: c.border,
-      marginBottom: 14,
+      marginBottom: 4,
       gap: 12,
-      elevation: 4,
-      shadowColor: "#0F172A",
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.07,
-      shadowRadius: 16
+      elevation: 3,
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.08,
+      shadowRadius: 18
     },
     sectionTitle: {
       color: c.text,
-      fontSize: 16,
+      fontSize: 13,
       fontWeight: "700",
-      marginBottom: 4
+      letterSpacing: 1.2,
+      textTransform: "uppercase",
+      marginBottom: 2,
+      fontFamily: fonts.sansBold
     },
     field: { gap: 6 },
-    label: { color: c.muted, fontSize: 13, fontWeight: "600" },
-    hint: { color: c.muted, fontSize: 12 },
+    label: {
+      color: c.muted,
+      fontSize: 11,
+      fontWeight: "700",
+      letterSpacing: 1,
+      textTransform: "uppercase",
+      fontFamily: fonts.sansBold
+    },
+    hint: { color: c.muted, fontSize: 12, fontFamily: fonts.sans },
     inputWrap: { position: "relative", justifyContent: "center" },
     input: {
       borderWidth: 1,
       borderColor: c.border,
       backgroundColor: c.inputBg,
       color: c.text,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingHorizontal: 14,
-      paddingVertical: 13,
-      fontSize: 16
+      paddingVertical: 14,
+      fontSize: 16,
+      fontFamily: fonts.sans
     },
     inputWithToggle: { paddingRight: 48 },
     eyeBtn: {
@@ -561,55 +759,61 @@ function createStyles(c: AppColors) {
     },
     primaryBtn: {
       backgroundColor: c.primary,
-      borderRadius: 14,
+      borderRadius: 16,
       paddingVertical: 15,
       paddingHorizontal: 16,
       alignItems: "center",
       justifyContent: "center",
       alignSelf: "stretch",
-      minHeight: 50,
+      minHeight: 52,
       marginTop: 4,
       elevation: 3,
       shadowColor: c.primary,
-      shadowOffset: { width: 0, height: 4 },
+      shadowOffset: { width: 0, height: 6 },
       shadowOpacity: 0.28,
-      shadowRadius: 10
+      shadowRadius: 12
     },
     primaryBtnPressed: { backgroundColor: c.primaryPressed },
     secondaryBtn: {
       borderWidth: 1,
       borderColor: c.border,
-      borderRadius: 14,
+      borderRadius: 16,
       paddingVertical: 15,
       paddingHorizontal: 16,
       alignItems: "center",
       justifyContent: "center",
       alignSelf: "stretch",
-      minHeight: 50,
-      backgroundColor: c.inset
+      minHeight: 52,
+      backgroundColor: c.card
     },
-    secondaryBtnPressed: { backgroundColor: c.cardElevated },
+    secondaryBtnPressed: { backgroundColor: c.inset },
     dangerBtn: {
       backgroundColor: c.dangerSoft,
       borderWidth: 1,
       borderColor: c.danger,
-      borderRadius: 10,
+      borderRadius: 16,
       paddingVertical: 14,
       paddingHorizontal: 16,
       alignItems: "center",
       justifyContent: "center",
       alignSelf: "stretch",
-      minHeight: 48
+      minHeight: 50
     },
-    dangerBtnText: { color: c.danger, fontWeight: "700" },
+    dangerBtnText: { color: c.danger, fontWeight: "700", fontFamily: fonts.sansBold },
     btnDisabled: { opacity: 0.55 },
-    primaryBtnText: { color: c.primaryOn, fontSize: 16, fontWeight: "700" },
-    secondaryBtnText: { color: c.text, fontSize: 15, fontWeight: "600" },
+    primaryBtnText: {
+      color: c.primaryOn,
+      fontSize: 16,
+      fontWeight: "700",
+      letterSpacing: 0.2,
+      fontFamily: fonts.sansBold
+    },
+    secondaryBtnText: { color: c.text, fontSize: 15, fontWeight: "700", fontFamily: fonts.sansBold },
     linkBtn: { paddingVertical: 10 },
-    linkBtnText: { color: c.primary, fontSize: 15, fontWeight: "600" },
+    linkBtnText: { color: c.accentText, fontSize: 15, fontWeight: "700", fontFamily: fonts.sansBold },
     segmentWrap: {
       backgroundColor: c.inset,
-      borderRadius: 14,
+      borderRadius: 16,
       padding: 4,
       borderWidth: 1,
       borderColor: c.border,
@@ -618,7 +822,7 @@ function createStyles(c: AppColors) {
     segmentRow: { flexDirection: "row", gap: 4 },
     segment: {
       flex: 1,
-      borderRadius: 10,
+      borderRadius: 12,
       paddingVertical: 10,
       alignItems: "center",
       backgroundColor: "transparent",
@@ -626,43 +830,53 @@ function createStyles(c: AppColors) {
     },
     segmentActive: {
       backgroundColor: c.card,
+      borderWidth: 1,
+      borderColor: c.gold,
       elevation: 1,
-      shadowColor: "#0F172A",
+      shadowColor: c.shadow,
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.08,
       shadowRadius: 4,
       overflow: "hidden"
     },
-    segmentText: { color: c.muted, fontWeight: "600", fontSize: 13 },
-    segmentTextActive: { color: c.primary, fontWeight: "700" },
+    segmentText: { color: c.muted, fontWeight: "600", fontSize: 13, fontFamily: fonts.sansSemi },
+    segmentTextActive: { color: c.accentText, fontWeight: "700", fontFamily: fonts.sansBold },
     roleCard: {
       borderWidth: 1,
       borderColor: c.border,
-      borderRadius: 12,
+      borderRadius: 16,
       padding: 14,
       backgroundColor: c.inset
     },
-    roleCardActive: { borderColor: c.primary, backgroundColor: c.primarySoft },
-    roleTitle: { color: c.text, fontSize: 16, fontWeight: "700" },
-    roleTitleActive: { color: c.accentText },
-    roleDesc: { color: c.muted, fontSize: 13, marginTop: 4 },
+    roleCardActive: { borderColor: c.gold, backgroundColor: c.goldSoft },
+    roleTitle: { color: c.text, fontSize: 18, fontWeight: "700", fontFamily: fonts.serifBold },
+    roleTitleActive: { color: c.goldText },
+    roleDesc: { color: c.muted, fontSize: 13, marginTop: 4, fontFamily: fonts.sans },
     listCard: {
       backgroundColor: c.card,
-      borderRadius: 18,
+      borderRadius: 20,
       padding: 16,
+      paddingLeft: 18,
       borderWidth: 1,
       borderColor: c.border,
       marginBottom: 10,
+      overflow: "hidden",
       elevation: 2,
-      shadowColor: "#0F172A",
-      shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.06,
-      shadowRadius: 10
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.07,
+      shadowRadius: 12
     },
     listCardPressed: { opacity: 0.94, transform: [{ scale: 0.995 }] },
     listCardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-    listCardTitle: { color: c.text, fontSize: 17, fontWeight: "800", letterSpacing: -0.2 },
-    listCardSubtitle: { color: c.muted, fontSize: 14, marginTop: 4, lineHeight: 20 },
+    listCardTitle: {
+      color: c.text,
+      fontSize: 20,
+      fontWeight: "700",
+      letterSpacing: -0.3,
+      fontFamily: fonts.serifBold
+    },
+    listCardSubtitle: { color: c.muted, fontSize: 14, marginTop: 4, lineHeight: 20, fontFamily: fonts.sans },
     listCardMetaWrap: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 },
     metaChip: {
       backgroundColor: c.chip,
@@ -673,7 +887,7 @@ function createStyles(c: AppColors) {
       borderColor: c.border,
       overflow: "hidden"
     },
-    metaChipText: { color: c.chipText, fontSize: 11, fontWeight: "600" },
+    metaChipText: { color: c.chipText, fontSize: 11, fontWeight: "600", fontFamily: fonts.sansSemi },
     badge: {
       backgroundColor: c.primarySoft,
       paddingHorizontal: 10,
@@ -683,27 +897,41 @@ function createStyles(c: AppColors) {
       borderColor: c.border,
       overflow: "hidden"
     },
-    badgeText: { color: c.accentText, fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
+    badgeText: {
+      color: c.accentText,
+      fontSize: 10,
+      fontWeight: "700",
+      letterSpacing: 0.4,
+      fontFamily: fonts.sansBold
+    },
+    badgeOk: { backgroundColor: c.primarySoft, borderColor: c.success },
+    badgeOkText: { color: c.success },
+    badgeBad: { backgroundColor: c.dangerSoft, borderColor: c.danger },
+    badgeBadText: { color: c.danger },
+    badgeGold: { backgroundColor: c.goldSoft, borderColor: c.gold },
+    badgeGoldText: { color: c.goldText },
+    badgeWarn: { backgroundColor: c.goldSoft, borderColor: c.warning },
+    badgeWarnText: { color: c.warning },
     roleBadgeTalent: {
       paddingHorizontal: 10,
       paddingVertical: 5,
       borderRadius: 999,
       borderWidth: 1,
-      backgroundColor: "#E8F4FD",
-      borderColor: "#B3D9F7",
+      backgroundColor: c.primarySoft,
+      borderColor: c.border,
       overflow: "hidden"
     },
-    roleBadgeTalentText: { color: "#1565C0", fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
+    roleBadgeTalentText: { color: c.accentText, fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
     roleBadgeEmployer: {
       paddingHorizontal: 10,
       paddingVertical: 5,
       borderRadius: 999,
       borderWidth: 1,
-      backgroundColor: "#FFF4E5",
-      borderColor: "#FFD699",
+      backgroundColor: c.goldSoft,
+      borderColor: c.gold,
       overflow: "hidden"
     },
-    roleBadgeEmployerText: { color: "#B45309", fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
+    roleBadgeEmployerText: { color: c.goldText, fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
     roleBadgeNeutral: {
       paddingHorizontal: 10,
       paddingVertical: 5,
@@ -716,18 +944,18 @@ function createStyles(c: AppColors) {
     roleBadgeNeutralText: { color: c.chipText, fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
     tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" },
     tagChip: {
-      backgroundColor: c.chip,
+      backgroundColor: c.goldSoft,
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: 999,
       borderWidth: 1,
-      borderColor: c.border
+      borderColor: c.gold
     },
-    tagChipText: { color: c.chipText, fontSize: 12, fontWeight: "600" },
+    tagChipText: { color: c.goldText, fontSize: 12, fontWeight: "700", fontFamily: fonts.sansBold },
     empty: {
       padding: 32,
       alignItems: "center",
-      borderRadius: 20,
+      borderRadius: 22,
       borderWidth: 1,
       borderColor: c.border,
       borderStyle: "dashed",
@@ -735,40 +963,20 @@ function createStyles(c: AppColors) {
       gap: 12
     },
     emptyIcon: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,
       overflow: "hidden"
     },
-    emptyText: { color: c.muted, textAlign: "center", fontSize: 14, lineHeight: 22 },
-    statPill: {
-      flex: 1,
-      backgroundColor: c.card,
-      borderRadius: 16,
-      padding: 14,
-      paddingTop: 16,
-      borderWidth: 1,
-      borderColor: c.border,
-      alignItems: "center",
-      overflow: "hidden",
-      elevation: 1,
-      shadowColor: "#0F172A",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 6
-    },
-    statAccent: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      height: 3,
-      backgroundColor: c.primary
-    },
-    statValue: { color: c.text, fontSize: 18, fontWeight: "800" },
-    statLabel: { color: c.muted, fontSize: 11, marginTop: 4, fontWeight: "600" }
+    emptyText: {
+      color: c.muted,
+      textAlign: "center",
+      fontSize: 15,
+      lineHeight: 22,
+      fontFamily: fonts.serifItalic
+    }
   });
 }

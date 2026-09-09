@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -18,7 +18,7 @@ import {
   SecondaryButton,
   SectionTitle
 } from "../../components/ui";
-import { getAlbumAsViewer, mediaUrl } from "../../services/albums.service";
+import { getAlbumAsViewer, mediaUrl, type AlbumAsset, type AlbumDetail } from "../../services/albums.service";
 import { generateVideoThumbnail } from "../../services/video-thumbnail";
 import { useAuth } from "../../state/auth-context";
 import { useTheme } from "../../theme/theme-context";
@@ -27,6 +27,7 @@ import type {
   AdminUsersStackParamList,
   ChatStackParamList,
   DiscoverStackParamList,
+  JobsStackParamList,
   PostJobStackParamList
 } from "../../navigation/types";
 
@@ -35,7 +36,8 @@ type Props =
   | NativeStackScreenProps<AdminReportsStackParamList, "MemberAlbum">
   | NativeStackScreenProps<AdminUsersStackParamList, "MemberAlbum">
   | NativeStackScreenProps<PostJobStackParamList, "MemberAlbum">
-  | NativeStackScreenProps<ChatStackParamList, "MemberAlbum">;
+  | NativeStackScreenProps<ChatStackParamList, "MemberAlbum">
+  | NativeStackScreenProps<JobsStackParamList, "MemberAlbum">;
 
 const SCREEN_W = Dimensions.get("window").width;
 const MEDIA_GAP = 8;
@@ -45,7 +47,7 @@ export function MemberAlbumScreen({ route, navigation }: Props) {
   const { albumId, ownerName } = route.params;
   const { accessToken } = useAuth();
   const { colors } = useTheme();
-  const [album, setAlbum] = useState<any>(null);
+  const [album, setAlbum] = useState<AlbumDetail | null>(null);
   const [preview, setPreview] = useState<MediaPreview | null>(null);
   const [localVideoThumbs, setLocalVideoThumbs] = useState<Record<string, string>>({});
 
@@ -77,7 +79,7 @@ export function MemberAlbumScreen({ route, navigation }: Props) {
   );
 
   useEffect(() => {
-    const assets = (album?.assets ?? []) as any[];
+    const assets = album?.assets ?? [];
     assets
       .filter((a) => a.assetType === "VIDEO" && !a.thumbnailUrl && !localVideoThumbs[a.id])
       .forEach((asset) => {
@@ -101,6 +103,7 @@ export function MemberAlbumScreen({ route, navigation }: Props) {
 
   return (
     <ScreenLayout
+      headerStyle="slim"
       title={album.title}
       subtitle={
         ownerName
@@ -119,7 +122,7 @@ export function MemberAlbumScreen({ route, navigation }: Props) {
             justifyContent: "center"
           }}
         >
-          {(album.assets ?? []).map((asset: any) => {
+          {(album.assets ?? []).map((asset: AlbumAsset) => {
             const isVideo = asset.assetType === "VIDEO";
             const thumbUri =
               mediaUrl(asset.thumbnailUrl) ||
