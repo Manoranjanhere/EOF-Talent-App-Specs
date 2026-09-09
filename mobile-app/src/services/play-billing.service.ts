@@ -8,6 +8,9 @@ export type PlayPurchaseResult = {
   purchaseToken: string;
   packageName: string;
   orderId?: string;
+  /** Native purchase object — used to acknowledge/consume after the API succeeds. */
+  rawPurchase?: PlayPurchaseLike;
+  isConsumable?: boolean;
 };
 
 const DEFAULT_SKUS: Record<string, string> = {
@@ -30,14 +33,14 @@ export function playPackageName(): string {
   );
 }
 
-type IapModule = {
-  initConnection: () => Promise<boolean>;
-  endConnection: () => Promise<void>;
-  getSubscriptions: (skus: string[]) => Promise<unknown[]>;
-  getProducts: (skus: string[]) => Promise<unknown[]>;
-  requestSubscription: (sku: string) => Promise<PlayPurchaseLike | PlayPurchaseLike[]>;
-  requestPurchase: (sku: string) => Promise<PlayPurchaseLike | PlayPurchaseLike[]>;
-  finishTransaction: (purchase: PlayPurchaseLike, isConsumable?: boolean) => Promise<void>;
+type SubscriptionOfferLike = {
+  offerToken?: string;
+  basePlanId?: string;
+};
+
+type SubscriptionLike = {
+  productId?: string;
+  subscriptionOfferDetails?: SubscriptionOfferLike[];
 };
 
 type PlayPurchaseLike = {
@@ -47,34 +50,203 @@ type PlayPurchaseLike = {
   transactionReceipt?: string;
   transactionId?: string;
   packageNameAndroid?: string;
+  purchaseStateAndroid?: number;
+  isAcknowledgedAndroid?: boolean;
+};
+
+type EmitterSub = { remove: () => void };
+
+type IapModule = {
+  initConnection: () => Promise<boolean>;
+  endConnection: () => Promise<void>;
+  getSubscriptions: (opts: { skus: string[] }) => Promise<SubscriptionLike[]>;
+  getProducts: (opts: { skus: string[] }) => Promise<unknown[]>;
+  getAvailablePurchases: () => Promise<PlayPurchaseLike[]>;
+  requestSubscription: (opts: {
+    subscriptionOffers: { sku: string; offerToken: string }[];
+  }) => Promise<PlayPurchaseLike | PlayPurchaseLike[] | void | null>;
+  requestPurchase: (opts: { skus: string[] }) => Promise<
+    PlayPurchaseLike | PlayPurchaseLike[] | void | null
+  >;
+  finishTransaction: (opts: {
+    purchase: PlayPurchaseLike;
+    isConsumable?: boolean;
+  }) => Promise<unknown>;
+  purchaseUpdatedListener: (cb: (purchase: PlayPurchaseLike) => void) => EmitterSub;
+  purchaseErrorListener: (cb: (error: { message?: string; code?: string }) => void) => EmitterSub;
 };
 
 function loadIap(): IapModule | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require("react-native-iap");
-    return (mod.default ?? mod) as IapModule;
+    const mod = require("react-native-iap") as { default?: IapModule } & Partial<IapModule>;
+    const src = (typeof mod.initConnection === "function" ? mod : mod.default) as
+      | IapModule
+      | undefined;
+    if (typeof src?.initConnection !== "function") return null;
+    return src;
   } catch {
     return null;
   }
 }
 
-function normalizePurchase(
-  raw: PlayPurchaseLike | PlayPurchaseLike[],
-  expectedSku: string
-): PlayPurchaseResult {
-  const purchase = Array.isArray(raw) ? raw[0] : raw;
-  const productId = purchase?.productId || purchase?.productIds?.[0] || expectedSku;
-  const purchaseToken = purchase?.purchaseToken || purchase?.transactionReceipt;
+function firstPurchase(
+  raw: PlayPurchaseLike | PlayPurchaseLike[] | void | null
+): PlayPurchaseLike | undefined {
+  if (!raw) return undefined;
+  return Array.isArray(raw) ? raw[0] : raw;
+}
+
+function purchaseTokenOf(purchase?: PlayPurchaseLike): string | undefined {
+  return purchase?.purchaseToken || purchase?.transactionReceipt || undefined;
+}
+
+function matchesSku(purchase: PlayPurchaseLike | undefined, sku: string): boolean {
+  if (!purchase) return false;
+  return purchase.productId === sku || Boolean(purchase.productIds?.includes(sku));
+}
+
+function mapPlayError(error: unknown): Error {
+  const err = error as { message?: string; code?: string; debugMessage?: string };
+  const code = err?.code || "";
+  const msg = err?.message || err?.debugMessage || String(error);
+
+  if (code === "E_USER_CANCELLED" || /user cancelled|canceled/i.test(msg)) {
+    return new Error("Purchase cancelled.");
+  }
+  if (code === "E_ITEM_UNAVAILABLE" || /item unavailable/i.test(msg)) {
+    return new Error(
+      "This product is not available in Google Play. Add the SKU in Play Console, publish Internal testing, and install from Play (license tester) — sideloaded APKs usually cannot complete billing."
+    );
+  }
+  if (code === "E_ALREADY_OWNED") {
+    return new Error(
+      "Google Play says you already own this. Close the Play sheet and try again — we will restore the existing purchase."
+    );
+  }
+  if (code === "E_SERVICE_ERROR" || code === "E_IAP_NOT_AVAILABLE" || /billing.*unavailable/i.test(msg)) {
+    return new Error(
+      "Google Play Billing is not available on this install. Use an Internal testing build signed with the Play upload key."
+    );
+  }
+  if (/subscriptionOffers are required|"skus" is required|skus is required/i.test(msg)) {
+    return new Error("Play Billing is misconfigured in this app build. Update the app and try again.");
+  }
+  return new Error(msg);
+}
+
+function normalizePurchase(purchase: PlayPurchaseLike, expectedSku: string): PlayPurchaseResult {
+  const productId = purchase.productId || purchase.productIds?.[0] || expectedSku;
+  const purchaseToken = purchaseTokenOf(purchase);
   if (!purchaseToken) {
     throw new Error("Play Store did not return a purchase token.");
   }
   return {
     productId,
     purchaseToken,
-    packageName: purchase?.packageNameAndroid || playPackageName(),
-    orderId: purchase?.transactionId
+    packageName: purchase.packageNameAndroid || playPackageName(),
+    orderId: purchase.transactionId,
+    rawPurchase: purchase,
+    isConsumable: false
   };
+}
+
+async function waitForPlayPurchase(
+  iap: IapModule,
+  expectedSku: string,
+  start: () => Promise<PlayPurchaseLike | PlayPurchaseLike[] | void | null>
+): Promise<PlayPurchaseLike> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const succeed = (purchase: PlayPurchaseLike) => {
+      if (settled || !purchaseTokenOf(purchase)) return;
+      settled = true;
+      cleanup();
+      resolve(purchase);
+    };
+    const fail = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(mapPlayError(error));
+    };
+
+    const updated = iap.purchaseUpdatedListener((purchase) => {
+      if (!matchesSku(purchase, expectedSku) && purchase.productId) return;
+      succeed(purchase);
+    });
+    const errored = iap.purchaseErrorListener((error) => fail(error));
+    const timer = setTimeout(() => {
+      fail(new Error("Play Store timed out. Try again."));
+    }, 120000);
+
+    function cleanup() {
+      clearTimeout(timer);
+      try {
+        updated.remove();
+      } catch {
+        // ignore
+      }
+      try {
+        errored.remove();
+      } catch {
+        // ignore
+      }
+    }
+
+    Promise.resolve()
+      .then(start)
+      .then((raw) => {
+        const purchase = firstPurchase(raw);
+        if (purchase && purchaseTokenOf(purchase)) succeed(purchase);
+      })
+      .catch(fail);
+  });
+}
+
+async function restoreOwnedPurchase(
+  iap: IapModule,
+  productId: string
+): Promise<PlayPurchaseLike | undefined> {
+  try {
+    const owned = await iap.getAvailablePurchases();
+    return owned.find((p) => matchesSku(p, productId) && purchaseTokenOf(p));
+  } catch {
+    return undefined;
+  }
+}
+
+async function buyOnPlay(
+  iap: IapModule,
+  productId: string,
+  isJobPostingPlan: boolean
+): Promise<PlayPurchaseLike> {
+  const restored = await restoreOwnedPurchase(iap, productId);
+  if (restored) return restored;
+
+  if (isJobPostingPlan) {
+    const products = await iap.getProducts({ skus: [productId] });
+    if (!products?.length) {
+      throw new Error(
+        `Play Store has no in-app product "${productId}". Create it as a one-time product in Play Console Internal testing.`
+      );
+    }
+    return waitForPlayPurchase(iap, productId, () => iap.requestPurchase({ skus: [productId] }));
+  }
+
+  const subscriptions = await iap.getSubscriptions({ skus: [productId] });
+  const sub = subscriptions.find((item) => item.productId === productId) || subscriptions[0];
+  const offerToken = sub?.subscriptionOfferDetails?.find((offer) => offer.offerToken)?.offerToken;
+  if (!offerToken) {
+    throw new Error(
+      `Play Store has no subscription offer for "${productId}". Add a base plan in Play Console and wait a few hours for it to activate.`
+    );
+  }
+  return waitForPlayPurchase(iap, productId, () =>
+    iap.requestSubscription({
+      subscriptionOffers: [{ sku: productId, offerToken }]
+    })
+  );
 }
 
 /**
@@ -94,7 +266,8 @@ export async function purchasePlanViaPlayStore(input: {
       productId,
       purchaseToken: `dev-bypass:${input.planCode}:${Date.now()}`,
       packageName: playPackageName(),
-      orderId: `dev-${Date.now()}`
+      orderId: `dev-${Date.now()}`,
+      isConsumable: input.isJobPostingPlan
     };
   }
 
@@ -111,22 +284,44 @@ export async function purchasePlanViaPlayStore(input: {
 
   await iap.initConnection();
   try {
-    if (input.isJobPostingPlan) {
-      await iap.getProducts([productId]);
-      const result = await iap.requestPurchase(productId);
-      const purchase = normalizePurchase(result, productId);
-      await iap.finishTransaction(
-        Array.isArray(result) ? result[0] : result,
-        true
-      );
-      return purchase;
-    }
-
-    await iap.getSubscriptions([productId]);
-    const result = await iap.requestSubscription(productId);
-    const purchase = normalizePurchase(result, productId);
-    await iap.finishTransaction(Array.isArray(result) ? result[0] : result, false);
+    const raw = await buyOnPlay(iap, productId, input.isJobPostingPlan);
+    const purchase = normalizePurchase(raw, productId);
+    purchase.isConsumable = input.isJobPostingPlan;
     return purchase;
+  } catch (error) {
+    throw mapPlayError(error);
+  } finally {
+    try {
+      await iap.endConnection();
+    } catch {
+      // ignore
+    }
+  }
+}
+
+/** Acknowledge/consume after the backend has recorded the entitlement. */
+export async function acknowledgePlayPurchase(play: PlayPurchaseResult): Promise<void> {
+  if (!play.rawPurchase || playBillingBypassEnabled()) return;
+  const iap = loadIap();
+  if (!iap) return;
+
+  const purchase: PlayPurchaseLike = {
+    ...play.rawPurchase,
+    purchaseToken: play.purchaseToken,
+    productId: play.productId,
+    // finishTransaction on Android requires PURCHASED (1) if the field is present.
+    purchaseStateAndroid: play.rawPurchase.purchaseStateAndroid ?? 1,
+    isAcknowledgedAndroid: play.rawPurchase.isAcknowledgedAndroid ?? false
+  };
+
+  await iap.initConnection();
+  try {
+    await iap.finishTransaction({
+      purchase,
+      isConsumable: Boolean(play.isConsumable)
+    });
+  } catch {
+    // Already acknowledged/consumed is fine.
   } finally {
     try {
       await iap.endConnection();

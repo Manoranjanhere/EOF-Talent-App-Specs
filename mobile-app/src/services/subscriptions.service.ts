@@ -1,6 +1,9 @@
 import { apiRequest } from "./api-client";
 import { GroupId } from "@eof/shared";
-import { purchasePlanViaPlayStore } from "./play-billing.service";
+import {
+  acknowledgePlayPurchase,
+  purchasePlanViaPlayStore
+} from "./play-billing.service";
 
 export type SubscriptionPlan = {
   id: string;
@@ -56,7 +59,7 @@ export async function purchasePlanWithPlayStore(
     planCode: plan.code,
     isJobPostingPlan: plan.isJobPostingPlan
   });
-  return purchaseSubscription(token, {
+  const result = await purchaseSubscription(token, {
     planId: plan.id,
     purchaseType: "PAID",
     purchaseRef: play.orderId,
@@ -64,6 +67,8 @@ export async function purchasePlanWithPlayStore(
     googlePlayProductId: play.productId,
     googlePlayPackageName: play.packageName
   });
+  await acknowledgePlayPurchase(play);
+  return result;
 }
 
 export function countAvailableJobSlots(subscriptions: UserSubscription[]) {

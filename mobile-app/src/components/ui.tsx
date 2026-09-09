@@ -65,13 +65,13 @@ export function ScreenLayout({
           style={[
             styles.headerBand,
             headerStyle === "slim" && styles.headerBandSlim,
-            { paddingTop: Math.max(insets.top, 12) + (headerStyle === "slim" ? 4 : 8) }
+            { paddingTop: Math.max(insets.top, 8) + (headerStyle === "slim" ? 2 : 4) }
           ]}
         >
           <View style={styles.headerGoldLine} />
           <View style={styles.headerRow}>
             <View style={styles.headerText}>
-              <View style={[styles.brandRow, headerStyle === "slim" && { marginBottom: showTitle ? 10 : 0 }]}>
+              <View style={[styles.brandRow, headerStyle === "slim" && { marginBottom: showTitle ? 6 : 0 }]}>
                 <View style={styles.logoBadge}>
                   <AppLogoIcon size={headerStyle === "slim" ? 18 : 22} />
                 </View>
@@ -628,16 +628,16 @@ function createStyles(c: AppColors) {
     scroll: { flexGrow: 1, paddingBottom: 48 },
     headerBand: {
       paddingHorizontal: 22,
-      paddingBottom: 26,
-      marginBottom: 4,
+      paddingBottom: 18,
+      marginBottom: 2,
       overflow: "hidden",
-      borderBottomLeftRadius: 32,
-      borderBottomRightRadius: 32
+      borderBottomLeftRadius: 28,
+      borderBottomRightRadius: 28
     },
     headerBandSlim: {
-      paddingBottom: 16,
-      borderBottomLeftRadius: 24,
-      borderBottomRightRadius: 24
+      paddingBottom: 12,
+      borderBottomLeftRadius: 20,
+      borderBottomRightRadius: 20
     },
     headerGoldLine: {
       position: "absolute",
@@ -649,11 +649,11 @@ function createStyles(c: AppColors) {
     },
     headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
     headerText: { flex: 1, paddingRight: 12 },
-    brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16 },
+    brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
     logoBadge: {
-      width: 40,
-      height: 40,
-      borderRadius: 14,
+      width: 34,
+      height: 34,
+      borderRadius: 12,
       backgroundColor: "rgba(255,251,247,0.1)",
       alignItems: "center",
       justifyContent: "center",
